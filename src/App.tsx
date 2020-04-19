@@ -1,11 +1,9 @@
 import React from "react";
-import AddTodo from "./components/AddTodo";
-import "./App.css";
-
+import Editor from "./components/Editor";
 function App() {
   return (
     <div className="App">
-      <AddTodo />
+      <Editor />
     </div>
   );
 }
