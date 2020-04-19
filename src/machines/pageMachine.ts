@@ -7,7 +7,8 @@ export const INIT_RELATION = "INIT_RELATION";
 export const KEY_DOWN = "KEY_DOWN";
 export const CHANGE = "CHANGE";
 export const UNINDENT_NODE = "UNINDENT_NODE";
-export const INSERT_LIST = "INSERT_LIST";
+export const INDENT_NODE = "INDENT_NODE";
+export const INSERT_BREAK = "INSERT_BREAK";
 export const GO_TO_SELECTION_NOT_AT_FIRST_CHILD =
   "GO_TO_SELECTION_NOT_AT_FIRST_CHILD";
 export const GO_TO_SELECTION_AT_FIRST_CHILD = "GO_TO_SELECTION_AT_FIRST_CHILD";
@@ -22,9 +23,8 @@ interface IContext {
 
 interface ISchema {
   states: {
-    selectionAtFirstChild: {};
+    idle: {};
     addingRelation: {};
-    selectionNotAtFirstChild: {};
   };
 }
 
@@ -32,10 +32,9 @@ type IEvent =
   | { type: "KEY_DOWN"; key: string; shiftKey: boolean }
   // TODO: the value type should be generic
   | { type: "CHANGE"; value: any }
-  | { type: "INSERT_LIST" }
+  | { type: "INDENT_NODE" }
+  | { type: "INSERT_BREAK" }
   | { type: "UNINDENT_NODE" }
-  | { type: "GO_TO_SELECTION_NOT_AT_FIRST_CHILD" }
-  | { type: "GO_TO_SELECTION_AT_FIRST_CHILD" }
   | {
       type: "INIT_RELATION";
     };
@@ -46,12 +45,14 @@ const getTriggerEvent = (
 ) => {
   // if (editor.selectionAtFirstChild()) {
   //   return { type: GO_TO_SELECTION_NOT_AT_FIRST_CHILD };
-  // }
+  //
   switch (key) {
+    case "Enter":
+      return { type: INSERT_BREAK };
     case "Tab":
       if (shiftKey) {
         return { type: UNINDENT_NODE };
-      } else return { type: "" };
+      } else return { type: INDENT_NODE };
     case "[":
       if (prevKeyDownKey === "[") {
         return { type: INIT_RELATION };
@@ -60,54 +61,20 @@ const getTriggerEvent = (
       // TODO: better way to bail?
       return { type: "" };
   }
-};
-
-const getNonInitialTriggerEvent = (
-  { editor, prevKeyDownKey }: IContext,
-  { key, shiftKey }: any
-) => {
-  // if (!editor.selectionAtFirstChild()) {
-  //   return { type: GO_TO_SELECTION_AT_FIRST_CHILD };
-  // }
-  switch (key) {
-    case "Tab":
-      if (shiftKey) {
-        return { type: UNINDENT_NODE };
-      } else return { type: INSERT_LIST };
-    case "[":
-      if (prevKeyDownKey === "[") {
-        return { type: INIT_RELATION };
-      } else return { type: "" };
-    default:
-      // TODO: better way to bail?
-      return { type: "" };
-  }
-};
-
-const getAtFirstChildChangeEvent = ({ editor }: IContext) => {
-  if (!editor.isSelectionAtFirstChild()) {
-    return { type: GO_TO_SELECTION_NOT_AT_FIRST_CHILD };
-  } else return { type: "" };
-};
-
-const getNotAtFirstChildChangeEvent = ({ editor }: IContext) => {
-  if (editor.isSelectionAtFirstChild()) {
-    return { type: GO_TO_SELECTION_AT_FIRST_CHILD };
-  } else return { type: "" };
 };
 
 const pageMachine = Machine<IContext, ISchema, IEvent>(
   {
     id: "page",
-    initial: "selectionAtFirstChild",
+    initial: "idle",
     states: {
-      selectionAtFirstChild: {
+      idle: {
         on: {
           [UNINDENT_NODE]: {
             actions: ["unindentNode"],
           },
-          [CHANGE]: {
-            actions: [send(getAtFirstChildChangeEvent)],
+          [INSERT_BREAK]: {
+            actions: ["insertBreak"],
           },
           [KEY_DOWN]: {
             actions: [
@@ -129,8 +96,8 @@ const pageMachine = Machine<IContext, ISchema, IEvent>(
               "initRelation",
             ],
           },
-          [GO_TO_SELECTION_NOT_AT_FIRST_CHILD]: {
-            target: "selectionNotAtFirstChild",
+          [INDENT_NODE]: {
+            actions: ["indentNode"],
           },
         },
       },
@@ -138,45 +105,8 @@ const pageMachine = Machine<IContext, ISchema, IEvent>(
         exit: ["persistRelation"],
         on: {
           [KEY_DOWN]: {
-            target: "selectionAtFirstChild",
+            target: "idle",
             cond: { type: "hasFinishedCreatingRelation" },
-          },
-        },
-      },
-      selectionNotAtFirstChild: {
-        on: {
-          [CHANGE]: {
-            actions: [send(getNotAtFirstChildChangeEvent)],
-          },
-          [UNINDENT_NODE]: {
-            actions: ["unindentNode"],
-          },
-          [KEY_DOWN]: {
-            actions: [
-              assign<IContext>({
-                prevKeyDownKey: ({ keyDownKey }: IContext) => keyDownKey,
-              }),
-              assign<IContext>({
-                keyDownKey: (_: IContext, { key }: any) => key,
-              }),
-              send(getNonInitialTriggerEvent),
-            ],
-          },
-          [INIT_RELATION]: {
-            target: "addingRelation",
-            actions: [
-              assign<IContext>({
-                unpersistedRelationUuid: uuid(),
-              }),
-              "initRelation",
-            ],
-          },
-          [GO_TO_SELECTION_AT_FIRST_CHILD]: {
-            target: "selectionAtFirstChild",
-          },
-          [INSERT_LIST]: {
-            target: "selectionAtFirstChild",
-            actions: ["insertList"],
           },
         },
       },
@@ -195,8 +125,12 @@ const pageMachine = Machine<IContext, ISchema, IEvent>(
       unindentNode: ({ editor }: IContext) => {
         editor.unindentNode();
       },
-      insertList: ({ editor }: IContext) => {
-        editor.insertList();
+      indentNode: ({ editor }: IContext) => {
+        editor.indentNode();
+      },
+      insertBreak: ({ editor }: IContext) => {
+        console.log("handler");
+        editor.insertBreak();
       },
       initRelation: ({ editor, unpersistedRelationUuid }: IContext) => {
         editor.initRelation({ id: unpersistedRelationUuid });

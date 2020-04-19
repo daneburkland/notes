@@ -26,7 +26,7 @@ interface Children {
 
 interface ListItem {
   type: string;
-  children: Children[];
+  children: any;
 }
 
 interface IValue {
@@ -72,7 +72,19 @@ const List = (props: any) => {
 };
 
 const ListItem = (props: any) => {
-  return <li {...props.attributes}>{props.children}</li>;
+  return (
+    <li className="" {...props.attributes}>
+      {props.children}
+    </li>
+  );
+};
+
+const TextWrapper = (props: any) => {
+  return (
+    <span className="" {...props.attributes}>
+      {props.children}
+    </span>
+  );
 };
 
 const RelationElement = (props: any) => {
@@ -87,6 +99,8 @@ const renderElement = (props: any) => {
       return <CodeElement {...props} />;
     case "relation":
       return <RelationElement {...props} />;
+    // case "text-wrapper":
+    //   return <TextWrapper {...props} />;
     case "list-item":
     default:
       return <ListItem {...props} />;
@@ -118,8 +132,6 @@ function Page() {
     },
   });
 
-  console.log(state.value);
-
   // TODO: move value into context
   const [value, setValue] = useState([
     {
@@ -127,7 +139,29 @@ function Page() {
       children: [
         {
           type: "list-item",
-          children: [{ text: "A line of text in a paragraph." }],
+          children: [
+            {
+              type: "text-wrapper",
+              children: [{ text: "A line of text in a paragraph." }],
+            },
+            {
+              type: "list",
+              children: [
+                {
+                  type: "list-item",
+                  children: [
+                    { type: "text-wrapper", children: [{ text: "foo" }] },
+                  ],
+                },
+                {
+                  type: "list-item",
+                  children: [
+                    { type: "text-wrapper", children: [{ text: "bar" }] },
+                  ],
+                },
+              ],
+            },
+          ],
         },
       ],
     },
@@ -140,7 +174,7 @@ function Page() {
         value={value}
         onChange={(value) => {
           console.log(value);
-          send({ type: CHANGE, value });
+          // send({ type: CHANGE, value });
           setValue(value as IValue[]);
         }}
       >
@@ -148,7 +182,7 @@ function Page() {
           renderElement={renderElement}
           renderLeaf={renderLeaf}
           onKeyDown={(event) => {
-            if (["Tab"].includes(event.key)) {
+            if (["Tab", "Enter"].includes(event.key)) {
               event.preventDefault();
             }
             send({ type: KEY_DOWN, key: event.key, shiftKey: event.shiftKey });

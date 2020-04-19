@@ -1,4 +1,20 @@
-import { Transforms, Editor, Node } from "slate";
+import { Transforms, Editor, Node, Path } from "slate";
+
+function previousSiblingPath(path: any) {
+  const previousSiblingPath = [...path];
+  previousSiblingPath[path.length - 1]--;
+  return previousSiblingPath;
+}
+
+function nextSiblingPath(path: any) {
+  const nextSiblingPath = [...path];
+  nextSiblingPath[path.length - 1]++;
+  return nextSiblingPath;
+}
+
+function isPathInitialNode(path: any) {
+  return !path[path.length - 1];
+}
 
 const withRelation = (editor: any) => {
   const { isInline } = editor;
@@ -29,10 +45,107 @@ const withRelation = (editor: any) => {
     Transforms.move(editor, { distance: 2, reverse: true });
   };
 
-  editor.insertList = () => {
-    console.log("making list");
-    // Transforms.wrapNodes(editor, { type: "list-item", children: [] });
-    Transforms.wrapNodes(editor, { type: "list", children: [] });
+  editor.parentListItemFromSelection = () => {
+    const { path } = editor.selection.anchor;
+    const ancestors = Array.from(
+      Node.ancestors(editor, path, { reverse: true })
+    );
+
+    return ancestors[1];
+  };
+
+  editor.insertBreak = () => {
+    const [
+      parentListItem,
+      parentListItemPath,
+    ] = editor.parentListItemFromSelection();
+
+    const elementListTuple = Array.from(
+      Node.children(editor, parentListItemPath)
+    ).find(([element]) => element.type === "list");
+
+    // insert a child if children
+    if (!!elementListTuple) {
+      const [elementList, elementListPath] = elementListTuple;
+      const destination = elementListPath.concat(0);
+      Transforms.insertNodes(
+        editor,
+        {
+          type: "list-item",
+          children: [{ type: "text-wrapper", children: [] }],
+        },
+        { at: destination }
+      );
+
+      Transforms.setSelection(editor, {
+        anchor: { path: destination, offset: 0 },
+        focus: { path: destination, offset: 0 },
+      });
+    } else {
+      // insert a sibling if no children
+      const destination = nextSiblingPath(parentListItemPath);
+      Transforms.insertNodes(
+        editor,
+        {
+          type: "list-item",
+          children: [{ type: "text-wrapper", children: [] }],
+        },
+        { at: destination }
+      );
+
+      Transforms.setSelection(editor, {
+        anchor: { path: destination, offset: 0 },
+        focus: { path: destination, offset: 0 },
+      });
+    }
+  };
+
+  editor.indentNode = () => {
+    const [
+      parentListItem,
+      parentListItemPath,
+    ] = editor.parentListItemFromSelection();
+
+    if (isPathInitialNode(parentListItemPath)) {
+      return;
+    }
+    const parentListItemsPreviousSibling = Node.get(
+      editor,
+      previousSiblingPath(parentListItemPath)
+    );
+
+    // TODO: isn't it alwasy a list-item?
+    if (parentListItemsPreviousSibling.type === "list-item") {
+      const targetListNodePath = previousSiblingPath(parentListItemPath).concat(
+        1
+      );
+      // If it's just a text-wrapper (no list)
+      if (parentListItemsPreviousSibling.children.length === 1) {
+        Transforms.insertNodes(
+          editor,
+          {
+            type: "list",
+            children: [],
+          },
+          { at: targetListNodePath }
+        );
+
+        Transforms.moveNodes(editor, {
+          to: targetListNodePath.concat(0),
+          at: parentListItemPath,
+        });
+
+        // the sibling has two children: a text-wrapper and a list, we need to move
+        // the grandparent into this list
+      } else {
+        //
+        const targetListNode = Node.get(editor, targetListNodePath);
+        Transforms.moveNodes(editor, {
+          to: targetListNodePath.concat(targetListNode.children.length),
+          at: parentListItemPath,
+        });
+      }
+    }
   };
 
   editor.unindentNode = () => {
@@ -43,20 +156,16 @@ const withRelation = (editor: any) => {
       newPath[newPath.length - 1] = newPath[newPath.length - 1] + 1;
       return newPath;
     }
-    const ancestors = Array.from(
-      Node.ancestors(editor, path, { reverse: true })
-    );
-    const [parent, parentPath] = ancestors[0];
-    const [grandParent, grandParentPath] = ancestors[1];
 
-    console.log(unindent(grandParentPath), grandParentPath);
+    console.log(path);
     // Transforms.removeNodes(editor, {
-    //   at: grandParentPath,
+    //   at: parentListItemPath,
     // });
-    Transforms.moveNodes(editor, {
-      at: parentPath,
-      to: unindent(grandParentPath),
-    });
+    // Transforms.moveNodes(editor, {
+    //   mode: "all",
+    //   at: parentPath,
+    //   to: unindent(grandParentPath),
+    // });
     // Transforms.removeNodes(editor, { at: parentPath });
     // Transforms.wrapNodes(editor, { type: "list", children: [] });
     // Transforms.liftNodes(editor, { at: path });
