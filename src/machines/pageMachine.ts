@@ -73,6 +73,9 @@ const pageMachine = Machine<IContext, ISchema, IEvent>(
           [UNINDENT_NODE]: {
             actions: ["unindentNode"],
           },
+          [INDENT_NODE]: {
+            actions: ["indentNode"],
+          },
           [INSERT_BREAK]: {
             actions: ["insertBreak"],
           },
@@ -95,9 +98,6 @@ const pageMachine = Machine<IContext, ISchema, IEvent>(
               }),
               "initRelation",
             ],
-          },
-          [INDENT_NODE]: {
-            actions: ["indentNode"],
           },
         },
       },

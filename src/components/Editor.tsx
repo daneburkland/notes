@@ -99,8 +99,8 @@ const renderElement = (props: any) => {
       return <CodeElement {...props} />;
     case "relation":
       return <RelationElement {...props} />;
-    // case "text-wrapper":
-    //   return <TextWrapper {...props} />;
+    case "text-wrapper":
+      return <TextWrapper {...props} />;
     case "list-item":
     default:
       return <ListItem {...props} />;
@@ -150,13 +150,25 @@ function Page() {
                 {
                   type: "list-item",
                   children: [
-                    { type: "text-wrapper", children: [{ text: "foo" }] },
+                    { type: "text-wrapper", children: [{ text: "a" }] },
                   ],
                 },
                 {
                   type: "list-item",
                   children: [
-                    { type: "text-wrapper", children: [{ text: "bar" }] },
+                    { type: "text-wrapper", children: [{ text: "b" }] },
+                  ],
+                },
+                {
+                  type: "list-item",
+                  children: [
+                    { type: "text-wrapper", children: [{ text: "c" }] },
+                  ],
+                },
+                {
+                  type: "list-item",
+                  children: [
+                    { type: "text-wrapper", children: [{ text: "d" }] },
                   ],
                 },
               ],

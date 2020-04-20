@@ -54,6 +54,24 @@ const withRelation = (editor: any) => {
     return ancestors[1];
   };
 
+  editor.grandParentListFromSelection = () => {
+    const { path } = editor.selection.anchor;
+    const ancestors = Array.from(
+      Node.ancestors(editor, path, { reverse: true })
+    );
+
+    return ancestors[2];
+  };
+
+  editor.greatGrandParentListItemFromSelection = () => {
+    const { path } = editor.selection.anchor;
+    const ancestors = Array.from(
+      Node.ancestors(editor, path, { reverse: true })
+    );
+
+    return ancestors[3];
+  };
+
   editor.insertBreak = () => {
     const [
       parentListItem,
@@ -148,27 +166,85 @@ const withRelation = (editor: any) => {
     }
   };
 
+  editor.moveSubsequentListItemSiblingsIntoGrandParentList = () => {
+    const [
+      parentListItem,
+      parentListItemPath,
+    ] = editor.parentListItemFromSelection();
+    const [
+      grandparentList,
+      grandparentListPath,
+    ] = editor.grandParentListFromSelection();
+    const parentLineItemPositionInList = grandparentList.children.indexOf(
+      parentListItem
+    );
+
+    const targetListPath = parentListItemPath.concat(1);
+
+    // If the list-item isn't the last in it's list
+    if (grandparentList.children.length - 1 > parentLineItemPositionInList) {
+      // if the list-item doesn't already have a list beneath it
+      if (parentListItem.children.length === 1) {
+        Transforms.insertNodes(
+          editor,
+          { type: "list", children: [] },
+          { at: targetListPath }
+        );
+      }
+
+      const targetListExistingItemCount =
+        parentListItem.children[1]?.children.length || 0;
+
+      let i;
+      for (
+        i = parentLineItemPositionInList + 1;
+        i < grandparentList.children.length;
+        i++
+      ) {
+        let originPath = [
+          ...parentListItemPath.slice(0, parentListItemPath.length - 1),
+          parentListItemPath[parentListItemPath.length - 1] + 1,
+        ];
+        Transforms.moveNodes(editor, {
+          at: originPath,
+          to: targetListPath.concat(
+            i - parentLineItemPositionInList - 1 + targetListExistingItemCount
+          ),
+        });
+      }
+    }
+  };
+
   editor.unindentNode = () => {
-    console.log("making list");
-    const { path } = editor.selection.anchor;
-    function unindent(path: any) {
-      const newPath = [...path];
-      newPath[newPath.length - 1] = newPath[newPath.length - 1] + 1;
-      return newPath;
+    // Bail if grandParentList is root
+    if (editor.grandParentListFromSelection()[1].length === 1) {
+      return;
     }
 
-    console.log(path);
-    // Transforms.removeNodes(editor, {
-    //   at: parentListItemPath,
-    // });
-    // Transforms.moveNodes(editor, {
-    //   mode: "all",
-    //   at: parentPath,
-    //   to: unindent(grandParentPath),
-    // });
-    // Transforms.removeNodes(editor, { at: parentPath });
-    // Transforms.wrapNodes(editor, { type: "list", children: [] });
-    // Transforms.liftNodes(editor, { at: path });
+    editor.moveSubsequentListItemSiblingsIntoGrandParentList();
+
+    const [
+      parentListItem,
+      parentListItemPath,
+    ] = editor.parentListItemFromSelection();
+    const [
+      grandParentList,
+      grandParentListPath,
+    ] = editor.grandParentListFromSelection();
+    const [
+      greatGrandParentListItem,
+      greatGrandParentListItemPath,
+    ] = editor.greatGrandParentListItemFromSelection();
+
+    Transforms.moveNodes(editor, {
+      at: parentListItemPath,
+      to: nextSiblingPath(greatGrandParentListItemPath),
+    });
+
+    const previousGrandParentList = Node.get(editor, grandParentListPath);
+    if (!previousGrandParentList.children[0].type) {
+      Transforms.removeNodes(editor, { at: grandParentListPath });
+    }
   };
 
   editor.persistRelation = ({ id }: any) => {
