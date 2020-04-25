@@ -1,5 +1,4 @@
-// Import React dependencies.
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useEffect } from "react";
 import { useMachine } from "@xstate/react";
 
 import Leaf from "./Leaf";
@@ -7,8 +6,8 @@ import ListItem from "./ListItem";
 import List from "./List";
 import TextWrapper from "./TextWrapper";
 import LinkElement from "./LinkElement";
-import { createEditor, Node } from "slate";
-import withLink from "../../plugins/withLink";
+import { createEditor } from "slate";
+import withLink, { placeholderNode } from "../../plugins/withLink";
 import pageMachine, {
   KEY_DOWN,
   CHANGE,
@@ -20,8 +19,8 @@ import { useMutation } from "@apollo/react-hooks";
 import { useLazyQuery } from "../../index";
 import UPSERT_LINKS from "../../mutations/upsertLinks";
 import UPSERT_PAGE from "../../mutations/upsertPage";
+import DELETE_LINKS from "../../mutations/deleteLinks";
 import GET_PAGE_BY_ID from "../../queries/getPage";
-import GET_PAGES_BY_DAY from "../../queries/getTodaysPage";
 
 interface ListItem {
   type: string;
@@ -44,23 +43,25 @@ const renderElement = (props: any) => {
 
 const renderLeaf = (props: any) => <Leaf {...props} />;
 
-function Page({ match }: any) {
+function Editor({ match }: any) {
   const editor = useMemo(() => withLink(withReact(createEditor())), []);
   const { pageId } = match.params;
 
   const [upsertLinks] = useMutation(UPSERT_LINKS);
   const [upsertPage] = useMutation(UPSERT_PAGE);
+  const [deleteLinks] = useMutation(DELETE_LINKS);
   const getPageById = useLazyQuery(GET_PAGE_BY_ID);
-  const getPagesByDay = useLazyQuery(GET_PAGES_BY_DAY);
 
   const [current, send] = useMachine(pageMachine, {
     context: {
       editor,
       upsertLinks,
       upsertPage,
+      deleteLinks,
       pageId,
       getPageById,
-      getPagesByDay,
+      placeholderNode,
+      canBackspace: true,
     },
   });
 
@@ -72,8 +73,11 @@ function Page({ match }: any) {
     return <div>Loading</div>;
   }
 
+  console.log(current.context.canBackspace);
+
   return (
-    <div className="my-10">
+    <div>
+      <h1 className="text-5xl mb-6">{current.context.title}</h1>
       <Slate
         editor={editor}
         value={current.context.value}
@@ -88,6 +92,9 @@ function Page({ match }: any) {
             if (["Tab", "Enter"].includes(event.key)) {
               event.preventDefault();
             }
+            if (event.key === "Backspace" && !current.context.canBackspace) {
+              event.preventDefault();
+            }
             send({
               type: KEY_DOWN,
               key: event.key,
@@ -100,4 +107,4 @@ function Page({ match }: any) {
   );
 }
 
-export default Page;
+export default Editor;

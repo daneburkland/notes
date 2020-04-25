@@ -1,6 +1,6 @@
 import { Machine, assign, actions } from "xstate";
-import { NodeEntry, Node, Text, Editor } from "slate";
-import today from "../utils/today";
+import { NodeEntry, Node } from "slate";
+import { todayDateString, todayISO } from "../utils/datetime";
 const { send, cancel } = actions;
 
 function arraysEqual(a: any, b: any) {
@@ -40,11 +40,13 @@ interface IContext {
   previousLinkEntries: NodeEntry[];
   upsertLinks(links: any): any;
   upsertPage(page: any): any;
+  deleteLinks(linkIds: any): any;
   pageId: string;
-  value: any;
+  value: Node[];
+  title: string;
   getPageById(obj: any): Promise<any>;
-  getPagesByDay(obj: any): Promise<any>;
-  foo: any;
+  placeholderNode: Node;
+  canBackspace: boolean;
 }
 
 interface ISchema {
@@ -99,18 +101,24 @@ const checkSelectedListItem = ({
   } else return { type: "" };
 };
 
-function invokeFetchPage({ pageId, getPageById, getPagesByDay }: IContext) {
-  if (!!pageId) {
-    return getPageById({ id: pageId });
-  } else {
-    return getPagesByDay({ date: today });
-  }
+function invokeFetchPage({ pageId, getPageById }: IContext) {
+  return getPageById({ id: pageId || todayISO() });
 }
 
-function setValue({ pageId }: IContext, event: any) {
+function setValue({ pageId, placeholderNode }: IContext, event: any) {
   if (!!pageId) {
     return [event.data.data.page_by_pk.node];
-  } else return [event.data.data.page[0].node];
+  } else return [placeholderNode];
+}
+
+function setTitle({ pageId }: IContext, event: any) {
+  if (!!pageId) {
+    return event.data.data.page_by_pk.title;
+  } else return todayDateString();
+}
+
+function canBackspace({ editor }: IContext) {
+  return editor.canBackspace();
 }
 
 const pageMachine = Machine<IContext, ISchema, IEvent>(
@@ -127,6 +135,7 @@ const pageMachine = Machine<IContext, ISchema, IEvent>(
             target: "loaded",
             actions: assign<IContext>({
               value: setValue,
+              title: setTitle,
             }),
           },
           onError: "failed",
@@ -137,6 +146,7 @@ const pageMachine = Machine<IContext, ISchema, IEvent>(
           [CHANGE]: {
             actions: [
               assign<IContext>({
+                canBackspace,
                 value: (_: IContext, { value }: any) => value,
                 previousSelectedListItemPath: ({
                   selectedListItemPath,
@@ -192,8 +202,12 @@ const pageMachine = Machine<IContext, ISchema, IEvent>(
   {
     guards: {},
     actions: {
-      syncListItem: ({ editor }: IContext) => {
+      syncListItem: ({ editor, deleteLinks }: IContext) => {
         setTimeout(() => {
+          const linkIds = editor.removeBrokenLinkNodeEntries();
+          if (!!linkIds.length) {
+            deleteLinks({ variables: { linkIds } });
+          }
           editor.syncListItemSelection();
         }, 1);
       },
@@ -214,28 +228,12 @@ const pageMachine = Machine<IContext, ISchema, IEvent>(
 
         upsertPage({ variables: { page: { node: value[0], id: pageId } } });
 
-        // if (!!serializedLinkEntries.length) {
-        //   upsertLinks({ variables: { links: serializedLinkEntries } });
-        // }
+        if (!!serializedLinkEntries.length) {
+          upsertLinks({ variables: { links: serializedLinkEntries } });
+        }
       },
       backspace: ({ editor }: IContext) => {
-        const selection = editor.selection;
-
-        // if selection, nothing to do
-        if (selection.anchor.offset !== selection.focus.offset) return;
-
-        const [node] = Array.from(
-          Editor.nodes(editor, {
-            at: selection.focus,
-            match: Text.isText,
-          })
-        )[0];
-
-        const charToDelete = node.text[selection.focus.offset - 1];
-        const charAfterCursor = node.text[selection.focus.offset];
-        if (charToDelete === "[" && charAfterCursor === "]") {
-          editor.deleteForward({ unit: "character" });
-        }
+        editor.handleBackSpace();
       },
       unindentNode: ({ editor }: IContext) => {
         editor.unindentNode();

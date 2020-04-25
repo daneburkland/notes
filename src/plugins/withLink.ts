@@ -1,5 +1,24 @@
-import { Transforms, Editor, Node, NodeEntry, Path } from "slate";
+import { Transforms, Editor, Node, NodeEntry, Path, Text } from "slate";
 import { v4 as uuid } from "uuid";
+
+export const placeholderNode = {
+  type: "list",
+  children: [
+    {
+      type: "list-item",
+      children: [
+        {
+          type: "text-wrapper",
+          children: [
+            {
+              text: "Enter some text...",
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};
 
 function previousSiblingPath(path: any) {
   const previousSiblingPath = [...path];
@@ -25,18 +44,7 @@ const withLink = (editor: any) => {
   };
 
   editor.initLink = () => {
-    // editor.deleteBackward({ unit: "character" });
     Transforms.insertText(editor, "]");
-    // editor.insertNode({
-    //   type: "link",
-    //   isInline: true,
-    //   id: uuid(),
-    //   children: [
-    //     {
-    //       text: "[]]",
-    //     },
-    //   ],
-    // });
     Transforms.move(editor, { distance: 1, reverse: true });
   };
 
@@ -48,6 +56,25 @@ const withLink = (editor: any) => {
     );
 
     return ancestors.find((ancestor) => ancestor[0].type === "list-item");
+  };
+
+  editor.childListItemEntriesFromPath = (path: any) => {
+    console.log(path);
+    if (!path) return;
+
+    const children = Array.from(Node.children(editor, path)).filter(
+      ([n]) => n.type === "list"
+    );
+
+    // const children = Array.from(
+    //   Editor.nodes(editor, {
+    //     at: path,
+    //     mode: "lowest",
+    //     match: (n) => n.type === "list-item",
+    //   })
+    // );
+
+    return children;
   };
 
   editor.parentTextWrapperFromPath = (path: any) => {
@@ -242,26 +269,6 @@ const withLink = (editor: any) => {
     }
   };
 
-  editor.persistLink = ({ id }: any) => {
-    const [node, path] = Array.from(Node.elements(editor)).find((arr) => {
-      return !!arr[0].id && arr[0].id === id;
-    });
-    editor.apply({
-      type: "set_node",
-      path,
-      properties: node,
-      newProperties: { url: "foo" },
-    });
-  };
-
-  editor.isWithinLink = () => {
-    const [match] = Editor.nodes(editor, {
-      match: (n) => n.type === "link",
-    });
-
-    return !!match;
-  };
-
   editor.isLinkNodeEntryBroken = ([node]: NodeEntry) => {
     const linkText = node.children[0].text;
     return (
@@ -322,6 +329,8 @@ const withLink = (editor: any) => {
         at: path,
       });
     });
+
+    return linkNodeEntriesToDestroy.map(([node]: NodeEntry) => node.id);
   };
 
   editor.createNewLinkNodeEntries = () => {
@@ -334,13 +343,11 @@ const withLink = (editor: any) => {
         const matches = [] as any[];
         let match;
         let reg = /\[\[(.*?)\]\]/g;
-        console.log(child, "child", i);
         while ((match = reg.exec(child.text))) {
           matches.push(match);
         }
 
         matches.reverse().forEach((match) => {
-          console.log("splitting", match[0], path);
           Transforms.delete(editor, {
             at: {
               anchor: { path: path.concat(i), offset: match.index },
@@ -372,7 +379,6 @@ const withLink = (editor: any) => {
   };
 
   editor.syncListItemSelection = () => {
-    editor.removeBrokenLinkNodeEntries();
     editor.createNewLinkNodeEntries();
 
     Transforms.unsetNodes(editor, "touched", {
@@ -387,35 +393,37 @@ const withLink = (editor: any) => {
       mode: "all",
     });
 
-    const { path } = editor.selection.anchor;
-    const parentListItemNodeEntry = editor.parentTextWrapperFromPath(path);
-    const parentTextWrapperPathNodeEntry = editor.parentTextWrapperFromPath(
-      path
-    );
-
-    if (parentListItemNodeEntry) {
-      const [, parentListItemPath] = parentListItemNodeEntry;
-      Transforms.setNodes(
-        editor,
-        { isSelected: true, touched: true },
-        {
-          match: (n) => n.type === "link",
-          at: parentListItemPath,
-        }
+    if (editor.selection) {
+      const { path } = editor.selection.anchor;
+      const parentListItemNodeEntry = editor.parentTextWrapperFromPath(path);
+      const parentTextWrapperPathNodeEntry = editor.parentTextWrapperFromPath(
+        path
       );
-    }
 
-    if (parentTextWrapperPathNodeEntry) {
-      const [, parentTextWrapperPath] = parentTextWrapperPathNodeEntry;
-      Transforms.setNodes(
-        editor,
-        { touched: true },
-        {
-          match: (n) => n.type === "text-wrapper",
-          at: parentTextWrapperPath,
-          mode: "highest",
-        }
-      );
+      if (parentListItemNodeEntry) {
+        const [, parentListItemPath] = parentListItemNodeEntry;
+        Transforms.setNodes(
+          editor,
+          { isSelected: true, touched: true },
+          {
+            match: (n) => n.type === "link",
+            at: parentListItemPath,
+          }
+        );
+      }
+
+      if (parentTextWrapperPathNodeEntry) {
+        const [, parentTextWrapperPath] = parentTextWrapperPathNodeEntry;
+        Transforms.setNodes(
+          editor,
+          { touched: true },
+          {
+            match: (n) => n.type === "text-wrapper",
+            at: parentTextWrapperPath,
+            mode: "highest",
+          }
+        );
+      }
     }
   };
 
@@ -451,21 +459,70 @@ const withLink = (editor: any) => {
 
   editor.serializeLinkEntries = ({
     linkEntries,
-    previousLinkEntries,
     pageId,
   }: {
     linkEntries: NodeEntry[];
     previousLinkEntries: NodeEntry[];
     pageId: string;
   }) => {
-    // const linkEntriesToDestroy = editor.getLinkNodesToDestroy({
-    //   linkEntries,
-    //   previousLinkEntries,
-    // });
     const serializedLinkEntries = linkEntries.map((linkEntry) =>
       editor.serializeLinkEntry({ linkEntry, pageId })
     );
     return serializedLinkEntries;
+  };
+
+  editor.isListItemNodeEntryEmpty = ([, path]: NodeEntry) => {
+    const hasText = !!Array.from(Node.texts(editor, { from: path })).filter(
+      ([{ text }]) => !!text
+    ).length;
+
+    return !hasText;
+  };
+
+  editor.doesListItemNodeEntryHaveListItemChildren = ([, path]: NodeEntry) => {
+    const hasText = !!Array.from(Node.texts(editor, { from: path })).filter(
+      ([{ text }]) => !!text
+    ).length;
+
+    return !hasText;
+  };
+
+  editor.canBackspace = () => {
+    const selection = editor.selection;
+    const [parentListItemEntry, path] = editor.parentListItemEntryFromPath(
+      selection.anchor.path
+    );
+
+    const listItemChildren = editor.childListItemEntriesFromPath(path);
+    console.log("listItemChildren", listItemChildren);
+
+    if (selection.anchor.offset === 0) {
+      const listItemChildren = editor.childListItemEntriesFromPath(path);
+      console.log("listItemChildren", listItemChildren);
+      return !listItemChildren.length;
+    }
+
+    return true;
+  };
+
+  editor.handleBackSpace = () => {
+    const selection = editor.selection;
+
+    // if selection, nothing to do
+    if (selection.anchor.offset !== selection.focus.offset) return;
+
+    const [node] = Array.from(
+      Editor.nodes(editor, {
+        at: selection.focus,
+        match: Text.isText,
+      })
+    )[0];
+
+    const charToDelete = node.text[selection.focus.offset - 1];
+    const charAfterCursor = node.text[selection.focus.offset];
+    if (charToDelete === "[" && charAfterCursor === "]") {
+      editor.deleteForward({ unit: "character" });
+    }
   };
 
   return editor;
