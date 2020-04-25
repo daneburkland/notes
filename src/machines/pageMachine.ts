@@ -1,5 +1,6 @@
 import { Machine, assign, actions } from "xstate";
 import { NodeEntry, Node, Text, Editor } from "slate";
+import today from "../utils/today";
 const { send, cancel } = actions;
 
 function arraysEqual(a: any, b: any) {
@@ -14,6 +15,7 @@ function arraysEqual(a: any, b: any) {
 }
 
 export const INIT_LINK = "INIT_LINK";
+export const GET_PAGE = "GET_PAGE";
 export const KEY_DOWN = "KEY_DOWN";
 export const CHANGE = "CHANGE";
 export const SYNC = "SYNC";
@@ -29,8 +31,6 @@ export const GO_TO_SELECTION_NOT_AT_FIRST_CHILD =
 export const GO_TO_SELECTION_AT_FIRST_CHILD = "GO_TO_SELECTION_AT_FIRST_CHILD";
 
 interface IContext {
-  prevKeyDownKey: string;
-  keyDownKey: string;
   editor: any;
   addLink: any;
   selectedListItemPath: any;
@@ -41,12 +41,17 @@ interface IContext {
   upsertLinks(links: any): any;
   upsertPage(page: any): any;
   pageId: string;
-  value: Node;
+  value: any;
+  getPageById(obj: any): Promise<any>;
+  getPagesByDay(obj: any): Promise<any>;
+  foo: any;
 }
 
 interface ISchema {
   states: {
-    idle: {};
+    loading: {};
+    loaded: {};
+    failed: {};
   };
 }
 
@@ -56,6 +61,7 @@ type IEvent =
   | { type: "CHANGE"; value: any }
   | { type: "INDENT_NODE" }
   | { type: "BACKSPACE" }
+  | { type: "GET_PAGE" }
   | { type: "CHANGE" }
   | { type: "SYNC" }
   | { type: "INSERT_BREAK" }
@@ -66,10 +72,7 @@ type IEvent =
       type: "INIT_LINK";
     };
 
-const getTriggerEvent = (
-  { prevKeyDownKey }: IContext,
-  { key, shiftKey }: any
-) => {
+const getTriggerEvent = (_: IContext, { key, shiftKey }: any) => {
   switch (key) {
     case "Enter":
       return { type: INSERT_BREAK };
@@ -81,10 +84,6 @@ const getTriggerEvent = (
       return { type: INIT_LINK };
     case "Backspace":
       return { type: BACKSPACE };
-    // if (prevKeyDownKey === "[") {
-    //   console.log("initting");
-    //   return { type: INIT_LINK };
-    // } else return { type: "" };
     default:
       // TODO: better way to bail?
       return { type: "" };
@@ -100,12 +99,40 @@ const checkSelectedListItem = ({
   } else return { type: "" };
 };
 
+function invokeFetchPage({ pageId, getPageById, getPagesByDay }: IContext) {
+  if (!!pageId) {
+    return getPageById({ id: pageId });
+  } else {
+    return getPagesByDay({ date: today });
+  }
+}
+
+function setValue({ pageId }: IContext, event: any) {
+  if (!!pageId) {
+    return [event.data.data.page_by_pk.node];
+  } else return [event.data.data.page[0].node];
+}
+
 const pageMachine = Machine<IContext, ISchema, IEvent>(
   {
     id: "page",
-    initial: "idle",
+    initial: "loading",
     states: {
-      idle: {
+      failed: {},
+      loading: {
+        invoke: {
+          id: "fetch-page",
+          src: invokeFetchPage,
+          onDone: {
+            target: "loaded",
+            actions: assign<IContext>({
+              value: setValue,
+            }),
+          },
+          onError: "failed",
+        },
+      },
+      loaded: {
         on: {
           [CHANGE]: {
             actions: [
@@ -115,10 +142,10 @@ const pageMachine = Machine<IContext, ISchema, IEvent>(
                   selectedListItemPath,
                 }: IContext) => selectedListItemPath,
                 selectedListItemPath: ({ editor }: IContext) => {
-                  const tuple = editor.parentListItemEntryFromPath(
+                  const nodeEntry = editor.parentListItemEntryFromPath(
                     editor.selection?.focus?.path
                   );
-                  return !!tuple && tuple[1];
+                  return !!nodeEntry && nodeEntry[1];
                 },
                 previousLinkEntries: ({ linkEntries }: IContext) => linkEntries,
                 linkEntries: ({ editor }: IContext) => editor.getLinkEntries(),
@@ -130,6 +157,9 @@ const pageMachine = Machine<IContext, ISchema, IEvent>(
                 id: "syncTimeout",
               }),
             ],
+          },
+          [GET_PAGE]: {
+            actions: ["getPage"],
           },
           [SYNC]: {
             actions: ["sync"],
@@ -150,15 +180,7 @@ const pageMachine = Machine<IContext, ISchema, IEvent>(
             actions: ["insertBreak"],
           },
           [KEY_DOWN]: {
-            actions: [
-              assign<IContext>({
-                prevKeyDownKey: ({ keyDownKey }: IContext) => keyDownKey,
-              }),
-              assign<IContext>({
-                keyDownKey: (_: IContext, { key }: any) => key,
-              }),
-              send(getTriggerEvent),
-            ],
+            actions: [send(getTriggerEvent)],
           },
           [INIT_LINK]: {
             actions: ["initLink"],
@@ -171,7 +193,6 @@ const pageMachine = Machine<IContext, ISchema, IEvent>(
     guards: {},
     actions: {
       syncListItem: ({ editor }: IContext) => {
-        console.log("syncing listItem", editor.selection.anchor.path);
         setTimeout(() => {
           editor.syncListItemSelection();
         }, 1);
@@ -191,7 +212,7 @@ const pageMachine = Machine<IContext, ISchema, IEvent>(
           pageId,
         });
 
-        // upsertPage({ variables: { page: { node: value[0], id: pageId } } });
+        upsertPage({ variables: { page: { node: value[0], id: pageId } } });
 
         // if (!!serializedLinkEntries.length) {
         //   upsertLinks({ variables: { links: serializedLinkEntries } });
@@ -228,24 +249,6 @@ const pageMachine = Machine<IContext, ISchema, IEvent>(
       initLink: ({ editor }: IContext) => {
         editor.initLink();
       },
-      // persistLink: ({
-      //   editor,
-      //   addLink,
-      // }: IContext) => {
-      //   const [node, path] = Array.from(Node.elements(editor)).find((arr) => {
-      //     return !!arr[0].id && arr[0].id === id;
-      //   });
-      //   editor.apply({
-      //     type: "set_node",
-      //     path,
-      //     properties: node,
-      //     newProperties: { url: "foo" },
-      //   });
-      //   const casted = node as Node;
-      //   const value = casted.children[0].text.replace(/\W/g, "");
-
-      //   addLink({ variables: { value, id } });
-      // },
     },
   }
 );

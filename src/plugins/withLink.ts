@@ -389,7 +389,9 @@ const withLink = (editor: any) => {
 
     const { path } = editor.selection.anchor;
     const parentListItemNodeEntry = editor.parentTextWrapperFromPath(path);
-    const [, parentTextWrapperPath] = editor.parentTextWrapperFromPath(path);
+    const parentTextWrapperPathNodeEntry = editor.parentTextWrapperFromPath(
+      path
+    );
 
     if (parentListItemNodeEntry) {
       const [, parentListItemPath] = parentListItemNodeEntry;
@@ -403,15 +405,18 @@ const withLink = (editor: any) => {
       );
     }
 
-    Transforms.setNodes(
-      editor,
-      { touched: true },
-      {
-        match: (n) => n.type === "text-wrapper",
-        at: parentTextWrapperPath,
-        mode: "highest",
-      }
-    );
+    if (parentTextWrapperPathNodeEntry) {
+      const [, parentTextWrapperPath] = parentTextWrapperPathNodeEntry;
+      Transforms.setNodes(
+        editor,
+        { touched: true },
+        {
+          match: (n) => n.type === "text-wrapper",
+          at: parentTextWrapperPath,
+          mode: "highest",
+        }
+      );
+    }
   };
 
   editor.getLinkEntries = (path: Path) => {
