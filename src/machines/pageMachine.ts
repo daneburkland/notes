@@ -1,6 +1,7 @@
 import { Machine, assign, actions } from "xstate";
 import { NodeEntry, Node } from "slate";
 import { todayDateString, localTodayISO } from "../utils/datetime";
+import { placeholderNode } from "../plugins/withLink";
 const { send, cancel } = actions;
 
 function arraysEqual(a: any, b: any) {
@@ -40,11 +41,12 @@ interface IContext {
   previousLinkEntries: NodeEntry[];
   upsertLinks(links: any): any;
   upsertPage(page: any): any;
+  getOrCreatePage(variables: any): any;
   deleteLinks(linkIds: any): any;
-  pageId: string;
+  pageTitle: string;
   value: Node[];
   title: string;
-  getPageById(obj: any): Promise<any>;
+  getPage(obj: any): Promise<any>;
   placeholderNode: Node;
   canBackspace: boolean;
 }
@@ -101,24 +103,20 @@ const checkSelectedListItem = ({
   } else return { type: "" };
 };
 
-function invokeFetchPage({ pageId, getPageById }: IContext) {
-  return getPageById({ id: pageId || localTodayISO() });
+function invokeFetchPage({ title, getPage }: IContext) {
+  return getPage({ title: title || todayDateString() });
 }
 
-function setValue({ pageId, placeholderNode }: IContext, event: any) {
-  if (!!pageId) {
+function setValue({ placeholderNode }: IContext, event: any) {
+  if (!!event.data.data.page_by_pk) {
     return [event.data.data.page_by_pk.node];
   } else return [placeholderNode];
 }
 
-function setTitle({ pageId }: IContext, event: any) {
-  if (!!pageId) {
+function setTitle({ title }: IContext, event: any) {
+  if (!!event.data.data.page_by_pk) {
     return event.data.data.page_by_pk.title;
   } else return todayDateString();
-}
-
-function setPageId({ pageId }: IContext) {
-  return pageId || localTodayISO();
 }
 
 function canBackspace({ editor }: IContext) {
@@ -141,7 +139,6 @@ const pageMachine = Machine<IContext, ISchema, IEvent>(
               assign<IContext>({
                 value: setValue,
                 title: setTitle,
-                pageId: setPageId,
               }),
               "sync",
             ],
@@ -183,7 +180,7 @@ const pageMachine = Machine<IContext, ISchema, IEvent>(
             actions: ["sync"],
           },
           [SYNC_LIST_ITEM]: {
-            actions: ["syncListItem"],
+            actions: ["syncTouchedListItem"],
           },
           [BACKSPACE]: {
             actions: ["backspace"],
@@ -210,39 +207,41 @@ const pageMachine = Machine<IContext, ISchema, IEvent>(
   {
     guards: {},
     actions: {
-      syncListItem: ({ editor, deleteLinks }: IContext) => {
+      syncTouchedListItem: ({
+        editor,
+        deleteLinks,
+        upsertLinks,
+        title,
+        getOrCreatePage,
+      }: IContext) => {
         setTimeout(() => {
           const linkIds = editor.removeBrokenLinkNodeEntries();
           if (!!linkIds.length) {
             deleteLinks({ variables: { linkIds } });
           }
+          const serializedLinkEntries = editor.serializeLinkEntries({
+            pageTitle: title,
+          });
+
+          if (!!serializedLinkEntries.length) {
+            upsertLinks({ variables: { links: serializedLinkEntries } });
+
+            serializedLinkEntries.forEach((linkEntry: any) => {
+              getOrCreatePage({
+                variables: {
+                  page: { title: linkEntry.value, node: placeholderNode },
+                },
+              });
+            });
+          }
+
           editor.syncListItemSelection();
-          // I think i need to loop through the links, upsert a page 'title',
         }, 1);
       },
-      sync: ({
-        editor,
-        linkEntries,
-        previousLinkEntries,
-        upsertLinks,
-        upsertPage,
-        pageId,
-        title,
-        value,
-      }: IContext) => {
-        const serializedLinkEntries = editor.serializeLinkEntries({
-          linkEntries,
-          previousLinkEntries,
-          pageId,
-        });
-
+      sync: ({ upsertPage, title, value }: IContext) => {
         upsertPage({
-          variables: { page: { node: value[0], id: pageId, title } },
+          variables: { page: { node: value[0], title } },
         });
-
-        if (!!serializedLinkEntries.length) {
-          upsertLinks({ variables: { links: serializedLinkEntries } });
-        }
       },
       backspace: ({ editor, canBackspace }: IContext) => {
         if (canBackspace) {

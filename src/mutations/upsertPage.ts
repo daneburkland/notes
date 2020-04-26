@@ -7,7 +7,7 @@ const UPSERT_PAGE = gql`
       on_conflict: { constraint: page_pkey, update_columns: [node] }
     ) {
       returning {
-        id
+        title
       }
     }
   }

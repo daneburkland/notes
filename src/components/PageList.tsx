@@ -20,7 +20,7 @@ function PageList() {
               <td className="border px-4 py-2">
                 {
                   <Link
-                    to={{ pathname: `/page/${page.id}` }}
+                    to={{ pathname: `/page/${page.title}` }}
                     key={page.id}
                     className="text-blue-500 hover:text-blue-800"
                   >

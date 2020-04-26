@@ -15,12 +15,14 @@ import pageMachine, {
 } from "../../machines/pageMachine";
 import { Slate, Editable, withReact } from "slate-react";
 
-import { useMutation } from "@apollo/react-hooks";
+import { useMutation, useQuery } from "@apollo/react-hooks";
 import { useLazyQuery } from "../../index";
 import UPSERT_LINKS from "../../mutations/upsertLinks";
 import UPSERT_PAGE from "../../mutations/upsertPage";
 import DELETE_LINKS from "../../mutations/deleteLinks";
-import GET_PAGE_BY_ID from "../../queries/getPage";
+import GET_PAGE_QUERY from "../../queries/getPage";
+import GET_OR_CREATE_PAGE from "../../mutations/getOrCreatePage";
+import GET_LINKS_BY_VALUE from "../../queries/getLinksByValue";
 
 interface ListItem {
   type: string;
@@ -45,12 +47,18 @@ const renderLeaf = (props: any) => <Leaf {...props} />;
 
 function Editor({ match }: any) {
   const editor = useMemo(() => withLink(withReact(createEditor())), []);
-  const { pageId } = match.params;
+  const { pageTitle } = match.params;
 
   const [upsertLinks] = useMutation(UPSERT_LINKS);
   const [upsertPage] = useMutation(UPSERT_PAGE);
   const [deleteLinks] = useMutation(DELETE_LINKS);
-  const getPageById = useLazyQuery(GET_PAGE_BY_ID);
+  const [getOrCreatePage] = useMutation(GET_OR_CREATE_PAGE);
+  const getPage = useLazyQuery(GET_PAGE_QUERY);
+
+  const { data: links, loading: linksLoading } = useQuery(GET_LINKS_BY_VALUE, {
+    variables: { value: pageTitle },
+  });
+  console.log(links, linksLoading);
 
   const [current, send] = useMachine(pageMachine, {
     context: {
@@ -58,8 +66,9 @@ function Editor({ match }: any) {
       upsertLinks,
       upsertPage,
       deleteLinks,
-      pageId,
-      getPageById,
+      title: pageTitle,
+      getPage,
+      getOrCreatePage,
       placeholderNode,
       canBackspace: true,
       linkEntries: [],
@@ -74,7 +83,7 @@ function Editor({ match }: any) {
     return <div>Loading</div>;
   }
 
-  console.log(current.context.canBackspace);
+  console.log(current.context.value);
 
   return (
     <div>

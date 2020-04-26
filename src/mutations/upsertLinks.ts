@@ -6,7 +6,7 @@ const UPSERT_LINKS = gql`
       objects: $links
       on_conflict: {
         constraint: link_pkey
-        update_columns: [value, listItemNode, pageId]
+        update_columns: [value, listItemNode, pageTitle]
       }
     ) {
       returning {

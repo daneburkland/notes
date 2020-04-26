@@ -23,7 +23,7 @@ function App() {
           <Route path="/all">
             <PageList />
           </Route>
-          <Route exact path="/page/:pageId" component={Editor} />
+          <Route exact path="/page/:pageTitle" component={Editor} />
         </Switch>
       </Router>
     </div>

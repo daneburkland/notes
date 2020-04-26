@@ -65,14 +65,6 @@ const withLink = (editor: any) => {
       ([n]) => n.type === "list"
     );
 
-    // const children = Array.from(
-    //   Editor.nodes(editor, {
-    //     at: path,
-    //     mode: "lowest",
-    //     match: (n) => n.type === "list-item",
-    //   })
-    // );
-
     return children;
   };
 
@@ -445,31 +437,32 @@ const withLink = (editor: any) => {
 
   editor.serializeLinkEntry = ({
     linkEntry,
-    pageId,
+    pageTitle,
   }: {
     linkEntry: NodeEntry;
-    pageId: string;
+    pageTitle: string;
   }) => {
     const [node, path] = linkEntry;
     return {
       id: node.id,
-      pageId,
+      pageTitle,
       value: editor.getLinkValueFromNode(node),
       listItemNode: editor.parentListItemEntryFromPath(path)[0],
     };
   };
 
   editor.serializeLinkEntries = ({
-    linkEntries,
-    pageId,
+    pageTitle,
   }: {
     linkEntries: NodeEntry[];
     previousLinkEntries: NodeEntry[];
-    pageId: string;
+    pageTitle: string;
   }) => {
-    const serializedLinkEntries = linkEntries.map((linkEntry) =>
-      editor.serializeLinkEntry({ linkEntry, pageId })
-    );
+    const serializedLinkEntries = editor
+      .getTouchedLinkEntries()
+      .map((linkEntry: NodeEntry) =>
+        editor.serializeLinkEntry({ linkEntry, pageTitle })
+      );
     return serializedLinkEntries;
   };
 
@@ -494,6 +487,7 @@ const withLink = (editor: any) => {
     const parentListItemEntryFromPath = editor.parentListItemEntryFromPath(
       selection.anchor.path
     );
+    if (!parentListItemEntryFromPath) return true;
     const [, path] = parentListItemEntryFromPath;
 
     if (selection.anchor.offset === 0 && selection.focus.offset === 0) {
@@ -515,7 +509,6 @@ const withLink = (editor: any) => {
     const selection = editor.selection;
 
     if (selection.anchor.offset === 0 && selection.focus.offset === 0) {
-      console.log("merging");
       // Transforms.mergeNodes(editor);
     }
 

@@ -1,9 +1,8 @@
 import gql from "graphql-tag";
 
 const GET_PAGE = gql`
-  query GetPage($id: String!) {
-    page_by_pk(id: $id) {
-      id
+  query GetPage($title: String!) {
+    page_by_pk(title: $title) {
       node
       title
     }

@@ -7,9 +7,7 @@ const GET_OR_CREATE_PAGE = gql`
       on_conflict: { constraint: page_pkey, update_columns: [] }
     ) {
       returning {
-        id
         title
-        node
       }
     }
   }
