@@ -32,7 +32,7 @@ function nextSiblingPath(path: any) {
   return nextSiblingPath;
 }
 
-function isPathInitialNode(path: any) {
+function isNodeEntryFirstChild([, path]: NodeEntry) {
   return !path[path.length - 1];
 }
 
@@ -59,7 +59,6 @@ const withLink = (editor: any) => {
   };
 
   editor.childListItemEntriesFromPath = (path: any) => {
-    console.log(path);
     if (!path) return;
 
     const children = Array.from(Node.children(editor, path)).filter(
@@ -151,11 +150,14 @@ const withLink = (editor: any) => {
 
   editor.indentNode = () => {
     const { path } = editor.selection.anchor;
-    const [, parentListItemPath] = editor.parentListItemEntryFromPath(path);
 
-    if (isPathInitialNode(parentListItemPath)) {
+    const parentListItemNodeEntry = editor.parentListItemEntryFromPath(path);
+
+    if (isNodeEntryFirstChild(parentListItemNodeEntry)) {
       return;
     }
+    const [, parentListItemPath] = parentListItemNodeEntry;
+
     const parentListItemsPreviousSibling = Node.get(
       editor,
       previousSiblingPath(parentListItemPath)
@@ -489,17 +491,21 @@ const withLink = (editor: any) => {
 
   editor.canBackspace = () => {
     const selection = editor.selection;
-    const [parentListItemEntry, path] = editor.parentListItemEntryFromPath(
+    const parentListItemEntryFromPath = editor.parentListItemEntryFromPath(
       selection.anchor.path
     );
+    const [, path] = parentListItemEntryFromPath;
 
-    const listItemChildren = editor.childListItemEntriesFromPath(path);
-    console.log("listItemChildren", listItemChildren);
-
-    if (selection.anchor.offset === 0) {
+    if (selection.anchor.offset === 0 && selection.focus.offset === 0) {
       const listItemChildren = editor.childListItemEntriesFromPath(path);
-      console.log("listItemChildren", listItemChildren);
-      return !listItemChildren.length;
+      const hasListItemChildren = !!listItemChildren.length;
+      const isParentListItemFirstChild = isNodeEntryFirstChild(
+        parentListItemEntryFromPath
+      );
+
+      return !hasListItemChildren;
+      // this should be: can backspace unless it has children and it's the first child
+      // return !hasListItemChildren || !isParentListItemFirstChild;
     }
 
     return true;
@@ -507,6 +513,14 @@ const withLink = (editor: any) => {
 
   editor.handleBackSpace = () => {
     const selection = editor.selection;
+
+    if (selection.anchor.offset === 0 && selection.focus.offset === 0) {
+      console.log("merging");
+      // Transforms.mergeNodes(editor);
+    }
+
+    // TODO: this needs to move a deleted list item's children after the end of it's previous
+    // sibling's children...can I use Transforms.mergeNodes?
 
     // if selection, nothing to do
     if (selection.anchor.offset !== selection.focus.offset) return;

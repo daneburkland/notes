@@ -1,6 +1,6 @@
 import { Machine, assign, actions } from "xstate";
 import { NodeEntry, Node } from "slate";
-import { todayDateString, todayISO } from "../utils/datetime";
+import { todayDateString, localTodayISO } from "../utils/datetime";
 const { send, cancel } = actions;
 
 function arraysEqual(a: any, b: any) {
@@ -102,7 +102,7 @@ const checkSelectedListItem = ({
 };
 
 function invokeFetchPage({ pageId, getPageById }: IContext) {
-  return getPageById({ id: pageId || todayISO() });
+  return getPageById({ id: pageId || localTodayISO() });
 }
 
 function setValue({ pageId, placeholderNode }: IContext, event: any) {
@@ -115,6 +115,10 @@ function setTitle({ pageId }: IContext, event: any) {
   if (!!pageId) {
     return event.data.data.page_by_pk.title;
   } else return todayDateString();
+}
+
+function setPageId({ pageId }: IContext) {
+  return pageId || localTodayISO();
 }
 
 function canBackspace({ editor }: IContext) {
@@ -133,10 +137,14 @@ const pageMachine = Machine<IContext, ISchema, IEvent>(
           src: invokeFetchPage,
           onDone: {
             target: "loaded",
-            actions: assign<IContext>({
-              value: setValue,
-              title: setTitle,
-            }),
+            actions: [
+              assign<IContext>({
+                value: setValue,
+                title: setTitle,
+                pageId: setPageId,
+              }),
+              "sync",
+            ],
           },
           onError: "failed",
         },
@@ -209,6 +217,7 @@ const pageMachine = Machine<IContext, ISchema, IEvent>(
             deleteLinks({ variables: { linkIds } });
           }
           editor.syncListItemSelection();
+          // I think i need to loop through the links, upsert a page 'title',
         }, 1);
       },
       sync: ({
@@ -218,6 +227,7 @@ const pageMachine = Machine<IContext, ISchema, IEvent>(
         upsertLinks,
         upsertPage,
         pageId,
+        title,
         value,
       }: IContext) => {
         const serializedLinkEntries = editor.serializeLinkEntries({
@@ -226,14 +236,18 @@ const pageMachine = Machine<IContext, ISchema, IEvent>(
           pageId,
         });
 
-        upsertPage({ variables: { page: { node: value[0], id: pageId } } });
+        upsertPage({
+          variables: { page: { node: value[0], id: pageId, title } },
+        });
 
         if (!!serializedLinkEntries.length) {
           upsertLinks({ variables: { links: serializedLinkEntries } });
         }
       },
-      backspace: ({ editor }: IContext) => {
-        editor.handleBackSpace();
+      backspace: ({ editor, canBackspace }: IContext) => {
+        if (canBackspace) {
+          editor.handleBackSpace();
+        }
       },
       unindentNode: ({ editor }: IContext) => {
         editor.unindentNode();

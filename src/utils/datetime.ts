@@ -1,7 +1,6 @@
-export const todayISO = () => {
-  const d = new Date();
-  d.setUTCHours(0, 0, 0, 0);
-  return d.toISOString();
+export const localTodayISO = () => {
+  const tzoffset = new Date().getTimezoneOffset() * 60000;
+  return new Date(Date.now() - tzoffset).toISOString().slice(0, 10);
 };
 
 export const todayDateString = () => new Date().toDateString();

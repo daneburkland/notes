@@ -5,7 +5,7 @@ import PageList from "./components/PageList";
 
 function App() {
   return (
-    <div className="App max-w-md mx-auto">
+    <div className="App max-w-lg mx-auto">
       <Router>
         <ul className="flex py-4">
           <li className="mr-6">

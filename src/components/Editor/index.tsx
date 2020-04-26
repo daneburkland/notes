@@ -62,6 +62,7 @@ function Editor({ match }: any) {
       getPageById,
       placeholderNode,
       canBackspace: true,
+      linkEntries: [],
     },
   });
 
