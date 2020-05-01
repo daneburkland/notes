@@ -5,6 +5,7 @@ import GET_PAGES from "../queries/getPages";
 
 function PageList() {
   const { data, loading } = useQuery(GET_PAGES);
+
   return (
     <table className="table-auto">
       <thead>
@@ -16,7 +17,7 @@ function PageList() {
       <tbody>
         {!loading &&
           data.page.map((page: any) => (
-            <tr key={page.id}>
+            <tr key={page.title}>
               <td className="border px-4 py-2">
                 {
                   <Link

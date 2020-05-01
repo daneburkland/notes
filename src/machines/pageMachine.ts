@@ -1,7 +1,7 @@
 import { Machine, assign, actions } from "xstate";
-import { NodeEntry, Node } from "slate";
-import { todayDateString, localTodayISO } from "../utils/datetime";
-import { placeholderNode } from "../plugins/withLink";
+import { Node, createEditor, Editor, Path } from "slate";
+import withLink, { placeholderNode } from "../plugins/withLink";
+import { withReact } from "slate-react";
 const { send, cancel } = actions;
 
 function arraysEqual(a: any, b: any) {
@@ -16,7 +16,6 @@ function arraysEqual(a: any, b: any) {
 }
 
 export const INIT_LINK = "INIT_LINK";
-export const GET_PAGE = "GET_PAGE";
 export const KEY_DOWN = "KEY_DOWN";
 export const CHANGE = "CHANGE";
 export const SYNC = "SYNC";
@@ -31,27 +30,21 @@ export const GO_TO_SELECTION_NOT_AT_FIRST_CHILD =
   "GO_TO_SELECTION_NOT_AT_FIRST_CHILD";
 export const GO_TO_SELECTION_AT_FIRST_CHILD = "GO_TO_SELECTION_AT_FIRST_CHILD";
 
-interface IContext {
-  editor: any;
-  addLink: any;
-  selectedListItemPath: any;
-  previousSelectedListItemPath: any;
-  selectedListItemNode: any;
-  linkEntries: NodeEntry[];
-  previousLinkEntries: NodeEntry[];
+export interface IContext {
+  editor: Editor;
+  selectedListItemPath: Path | null;
+  previousSelectedListItemPath: Path | null;
   upsertLinks(links: any): any;
   upsertPage(page: any): any;
-  getOrCreatePage(variables: any): any;
+  getOrCreatePage(variables: any): Promise<any>;
   deleteLinks(linkIds: any): any;
-  pageTitle: string;
-  value: Node[];
+  value: Node[] | any[];
   title: string;
-  getPage(obj: any): Promise<any>;
   placeholderNode: Node;
   canBackspace: boolean;
 }
 
-interface ISchema {
+export interface ISchema {
   states: {
     loading: {};
     loaded: {};
@@ -59,13 +52,12 @@ interface ISchema {
   };
 }
 
-type IEvent =
+export type IEvent =
   | { type: "KEY_DOWN"; key: string; shiftKey: boolean }
   // TODO: the value type should be generic
   | { type: "CHANGE"; value: any }
   | { type: "INDENT_NODE" }
   | { type: "BACKSPACE" }
-  | { type: "GET_PAGE" }
   | { type: "CHANGE" }
   | { type: "SYNC" }
   | { type: "INSERT_BREAK" }
@@ -103,165 +95,182 @@ const checkSelectedListItem = ({
   } else return { type: "" };
 };
 
-function invokeFetchPage({ title, getPage }: IContext) {
-  return getPage({ title: title || todayDateString() });
+function invokeFetchPage({ title, getOrCreatePage }: IContext) {
+  return getOrCreatePage({
+    variables: {
+      page: { title, node: placeholderNode },
+    },
+  });
 }
 
-function setValue({ placeholderNode }: IContext, event: any) {
-  if (!!event.data.data.page_by_pk) {
-    return [event.data.data.page_by_pk.node];
-  } else return [placeholderNode];
+function setValue(_: IContext, event: any) {
+  return [event.data.data.insert_page.returning[0].node];
 }
 
-function setTitle({ title }: IContext, event: any) {
-  if (!!event.data.data.page_by_pk) {
-    return event.data.data.page_by_pk.title;
-  } else return todayDateString();
+function setTitle(_: IContext, event: any) {
+  return event.data.data.insert_page.returning[0].title;
 }
 
-function canBackspace({ editor }: IContext) {
+function canBackspace({ editor }: IContext, event: any) {
   return editor.canBackspace();
 }
 
-const pageMachine = Machine<IContext, ISchema, IEvent>(
-  {
-    id: "page",
-    initial: "loading",
-    states: {
-      failed: {},
-      loading: {
-        invoke: {
-          id: "fetch-page",
-          src: invokeFetchPage,
-          onDone: {
-            target: "loaded",
-            actions: [
-              assign<IContext>({
-                value: setValue,
-                title: setTitle,
-              }),
-              "sync",
-            ],
-          },
-          onError: "failed",
-        },
-      },
-      loaded: {
-        on: {
-          [CHANGE]: {
-            actions: [
-              assign<IContext>({
-                canBackspace,
-                value: (_: IContext, { value }: any) => value,
-                previousSelectedListItemPath: ({
-                  selectedListItemPath,
-                }: IContext) => selectedListItemPath,
-                selectedListItemPath: ({ editor }: IContext) => {
-                  const nodeEntry = editor.parentListItemEntryFromPath(
-                    editor.selection?.focus?.path
-                  );
-                  return !!nodeEntry && nodeEntry[1];
-                },
-                previousLinkEntries: ({ linkEntries }: IContext) => linkEntries,
-                linkEntries: ({ editor }: IContext) => editor.getLinkEntries(),
-              }),
-              send(checkSelectedListItem),
-              cancel("syncTimeout"),
-              send(SYNC, {
-                delay: 2000,
-                id: "syncTimeout",
-              }),
-            ],
-          },
-          [GET_PAGE]: {
-            actions: ["getPage"],
-          },
-          [SYNC]: {
-            actions: ["sync"],
-          },
-          [SYNC_LIST_ITEM]: {
-            actions: ["syncTouchedListItem"],
-          },
-          [BACKSPACE]: {
-            actions: ["backspace"],
-          },
-          [UNINDENT_NODE]: {
-            actions: ["unindentNode"],
-          },
-          [INDENT_NODE]: {
-            actions: ["indentNode"],
-          },
-          [INSERT_BREAK]: {
-            actions: ["insertBreak"],
-          },
-          [KEY_DOWN]: {
-            actions: [send(getTriggerEvent)],
-          },
-          [INIT_LINK]: {
-            actions: ["initLink"],
-          },
-        },
-      },
-    },
-  },
-  {
-    guards: {},
-    actions: {
-      syncTouchedListItem: ({
-        editor,
-        deleteLinks,
+const createPageMachine = ({
+  upsertLinks,
+  upsertPage,
+  deleteLinks,
+  title,
+  getOrCreatePage,
+}: any) =>
+  Machine<IContext, ISchema, IEvent>(
+    {
+      id: `page-${title}`,
+      initial: "loading",
+      context: {
+        editor: withLink(withReact(createEditor())),
         upsertLinks,
+        upsertPage,
+        deleteLinks,
         title,
         getOrCreatePage,
-      }: IContext) => {
-        setTimeout(() => {
-          const linkIds = editor.removeBrokenLinkNodeEntries();
-          if (!!linkIds.length) {
-            deleteLinks({ variables: { linkIds } });
-          }
-          const serializedLinkEntries = editor.serializeLinkEntries({
-            pageTitle: title,
-          });
-
-          if (!!serializedLinkEntries.length) {
-            upsertLinks({ variables: { links: serializedLinkEntries } });
-
-            serializedLinkEntries.forEach((linkEntry: any) => {
-              getOrCreatePage({
-                variables: {
-                  page: { title: linkEntry.value, node: placeholderNode },
-                },
-              });
-            });
-          }
-
-          editor.syncListItemSelection();
-        }, 1);
+        placeholderNode,
+        canBackspace: true,
+        selectedListItemPath: null,
+        previousSelectedListItemPath: null,
+        value: [],
       },
-      sync: ({ upsertPage, title, value }: IContext) => {
-        upsertPage({
-          variables: { page: { node: value[0], title } },
-        });
-      },
-      backspace: ({ editor, canBackspace }: IContext) => {
-        if (canBackspace) {
-          editor.handleBackSpace();
-        }
-      },
-      unindentNode: ({ editor }: IContext) => {
-        editor.unindentNode();
-      },
-      indentNode: ({ editor }: IContext) => {
-        editor.indentNode();
-      },
-      insertBreak: ({ editor }: IContext) => {
-        editor.insertBreak();
-      },
-      initLink: ({ editor }: IContext) => {
-        editor.initLink();
+      states: {
+        failed: {},
+        loading: {
+          invoke: {
+            id: "fetch-page",
+            src: invokeFetchPage,
+            onDone: {
+              target: "loaded",
+              actions: [
+                assign<IContext>({
+                  value: setValue,
+                  title: setTitle,
+                }),
+              ],
+            },
+            onError: "failed",
+          },
+        },
+        loaded: {
+          on: {
+            [CHANGE]: {
+              actions: [
+                assign<IContext>({
+                  canBackspace,
+                  value: (_: IContext, { value }: any) => value,
+                  previousSelectedListItemPath: ({
+                    selectedListItemPath,
+                  }: IContext) => selectedListItemPath,
+                  selectedListItemPath: ({ editor }: IContext) => {
+                    const nodeEntry = editor.parentListItemEntryFromPath(
+                      editor.selection?.focus?.path
+                    );
+                    return !!nodeEntry && nodeEntry[1];
+                  },
+                }),
+                send(checkSelectedListItem),
+                cancel("syncTimeout"),
+                send(SYNC, {
+                  delay: 2000,
+                  id: "syncTimeout",
+                }),
+              ],
+            },
+            [SYNC]: {
+              actions: ["sync"],
+            },
+            [SYNC_LIST_ITEM]: {
+              actions: ["syncTouchedListItem"],
+            },
+            [BACKSPACE]: {
+              actions: ["backspace"],
+            },
+            [UNINDENT_NODE]: {
+              actions: ["unindentNode"],
+            },
+            [INDENT_NODE]: {
+              actions: ["indentNode"],
+            },
+            [INSERT_BREAK]: {
+              actions: ["insertBreak"],
+            },
+            [KEY_DOWN]: {
+              actions: [send(getTriggerEvent)],
+            },
+            [INIT_LINK]: {
+              actions: ["initLink"],
+            },
+          },
+        },
       },
     },
-  }
-);
+    {
+      guards: {},
+      actions: {
+        syncTouchedListItem: ({
+          editor,
+          deleteLinks,
+          upsertLinks,
+          title,
+          getOrCreatePage,
+        }: IContext) => {
+          setTimeout(() => {
+            const linkIds = editor.removeBrokenLinkNodeEntries();
+            if (!!linkIds.length) {
+              deleteLinks({ variables: { linkIds } });
+            }
 
-export default pageMachine;
+            editor.createNewLinkNodeEntries();
+            const serializedLinkEntries = editor.serializeLinkEntries({
+              pageTitle: title,
+            });
+            console.log("serialized link entries", serializedLinkEntries);
+
+            if (!!serializedLinkEntries.length) {
+              upsertLinks({ variables: { links: serializedLinkEntries } });
+
+              serializedLinkEntries.forEach((linkEntry: any) => {
+                getOrCreatePage({
+                  variables: {
+                    page: { title: linkEntry.value, node: placeholderNode },
+                  },
+                });
+              });
+            }
+
+            editor.syncListItemSelection();
+          }, 1);
+        },
+        sync: ({ upsertPage, title, value }: IContext) => {
+          upsertPage({
+            variables: { page: { node: value[0], title } },
+          });
+        },
+        backspace: ({ editor, canBackspace }: IContext) => {
+          if (canBackspace) {
+            editor.handleBackSpace();
+          }
+        },
+        unindentNode: ({ editor }: IContext) => {
+          editor.unindentNode();
+        },
+        indentNode: ({ editor }: IContext) => {
+          editor.indentNode();
+        },
+        insertBreak: ({ editor }: IContext) => {
+          editor.insertBreak();
+        },
+        initLink: ({ editor }: IContext) => {
+          editor.initLink();
+        },
+      },
+    }
+  );
+
+export default createPageMachine;

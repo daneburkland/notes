@@ -5,6 +5,7 @@ const GET_LINKS_BY_VALUE = gql`
     link(where: { value: { _eq: $value } }) {
       id
       listItemNode
+      pageTitle
     }
   }
 `;

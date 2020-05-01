@@ -51,11 +51,16 @@ const withLink = (editor: any) => {
   editor.parentListItemEntryFromPath = (path: any) => {
     if (!path) return;
 
-    const ancestors = Array.from(
-      Node.ancestors(editor, path, { reverse: true })
-    );
+    try {
+      const ancestors = Array.from(
+        Node.ancestors(editor, path, { reverse: true })
+      );
 
-    return ancestors.find((ancestor) => ancestor[0].type === "list-item");
+      return ancestors.find((ancestor) => ancestor[0].type === "list-item");
+    } catch (e) {
+      console.log(`Couldn't find parent list item entry`);
+      return null;
+    }
   };
 
   editor.childListItemEntriesFromPath = (path: any) => {
@@ -71,11 +76,15 @@ const withLink = (editor: any) => {
   editor.parentTextWrapperFromPath = (path: any) => {
     if (!path) return;
 
-    const ancestors = Array.from(
-      Node.ancestors(editor, path, { reverse: true })
-    );
+    try {
+      const ancestors = Array.from(
+        Node.ancestors(editor, path, { reverse: true })
+      );
 
-    return ancestors.find((ancestor) => ancestor[0].type === "text-wrapper");
+      return ancestors.find((ancestor) => ancestor[0].type === "text-wrapper");
+    } catch (e) {
+      console.log(`Couldn't find parent text-wrapper`);
+    }
   };
 
   editor.grandParentListFromSelection = () => {
@@ -155,37 +164,33 @@ const withLink = (editor: any) => {
       previousSiblingPath(parentListItemPath)
     );
 
-    // TODO: isn't it alwasy a list-item?
-    if (parentListItemsPreviousSibling.type === "list-item") {
-      const targetListNodePath = previousSiblingPath(parentListItemPath).concat(
-        1
+    const targetListNodePath = previousSiblingPath(parentListItemPath).concat(
+      1
+    );
+    // If it's just a text-wrapper (no list)
+    if (parentListItemsPreviousSibling.children.length === 1) {
+      Transforms.insertNodes(
+        editor,
+        {
+          type: "list",
+          children: [],
+        },
+        { at: targetListNodePath }
       );
-      // If it's just a text-wrapper (no list)
-      if (parentListItemsPreviousSibling.children.length === 1) {
-        Transforms.insertNodes(
-          editor,
-          {
-            type: "list",
-            children: [],
-          },
-          { at: targetListNodePath }
-        );
 
-        Transforms.moveNodes(editor, {
-          to: targetListNodePath.concat(0),
-          at: parentListItemPath,
-        });
+      Transforms.moveNodes(editor, {
+        to: targetListNodePath.concat(0),
+        at: parentListItemPath,
+      });
 
-        // the sibling has two children: a text-wrapper and a list, we need to move
-        // the grandparent into this list
-      } else {
-        //
-        const targetListNode = Node.get(editor, targetListNodePath);
-        Transforms.moveNodes(editor, {
-          to: targetListNodePath.concat(targetListNode.children.length),
-          at: parentListItemPath,
-        });
-      }
+      // the sibling has two children: a text-wrapper and a list, we need to move
+      // the grandparent into this list
+    } else {
+      const targetListNode = Node.get(editor, targetListNodePath);
+      Transforms.moveNodes(editor, {
+        to: targetListNodePath.concat(targetListNode.children.length),
+        at: parentListItemPath,
+      });
     }
   };
 
@@ -357,7 +362,9 @@ const withLink = (editor: any) => {
             {
               type: "link",
               isInline: true,
+              touched: true,
               id: uuid(),
+              value: editor.stripBrackets(match[0]),
               children: [{ text: match[0] }],
             },
             {
@@ -435,6 +442,10 @@ const withLink = (editor: any) => {
     return linkWithBrackets.substring(2, linkWithBrackets.length - 2);
   };
 
+  editor.stripBrackets = (text: string) => {
+    return text.substring(2, text.length - 2);
+  };
+
   editor.serializeLinkEntry = ({
     linkEntry,
     pageTitle,
@@ -445,8 +456,8 @@ const withLink = (editor: any) => {
     const [node, path] = linkEntry;
     return {
       id: node.id,
+      value: node.value,
       pageTitle,
-      value: editor.getLinkValueFromNode(node),
       listItemNode: editor.parentListItemEntryFromPath(path)[0],
     };
   };
@@ -484,6 +495,7 @@ const withLink = (editor: any) => {
 
   editor.canBackspace = () => {
     const selection = editor.selection;
+    if (!selection) return;
     const parentListItemEntryFromPath = editor.parentListItemEntryFromPath(
       selection.anchor.path
     );
@@ -493,9 +505,9 @@ const withLink = (editor: any) => {
     if (selection.anchor.offset === 0 && selection.focus.offset === 0) {
       const listItemChildren = editor.childListItemEntriesFromPath(path);
       const hasListItemChildren = !!listItemChildren.length;
-      const isParentListItemFirstChild = isNodeEntryFirstChild(
-        parentListItemEntryFromPath
-      );
+      // const isParentListItemFirstChild = isNodeEntryFirstChild(
+      //   parentListItemEntryFromPath
+      // );
 
       return !hasListItemChildren;
       // this should be: can backspace unless it has children and it's the first child
