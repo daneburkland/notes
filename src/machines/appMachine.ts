@@ -18,6 +18,7 @@ interface IContext {
   upsertPage(page: any): any;
   getOrCreatePage(variables: any): any;
   deleteLinks(linkIds: any): any;
+  getLinksByValue(value: any): any;
   history$: any;
 }
 
@@ -42,7 +43,13 @@ const resolveSelectedPageContext = ({
 }) => {
   const pageTitle = pageTitleFromUrl || todayDateString();
   let page = context.pages[pageTitle];
-  const { upsertLinks, upsertPage, deleteLinks, getOrCreatePage } = context;
+  const {
+    upsertLinks,
+    upsertPage,
+    deleteLinks,
+    getOrCreatePage,
+    getLinksByValue,
+  } = context;
 
   if (page) {
     return {
@@ -57,6 +64,7 @@ const resolveSelectedPageContext = ({
       upsertPage,
       deleteLinks,
       getOrCreatePage,
+      getLinksByValue,
       title: pageTitle,
     })
   );
@@ -92,6 +100,7 @@ const appMachine = Machine<IContext, ISchema, IEvent>(
       upsertPage: () => null,
       deleteLinks: () => null,
       getOrCreatePage: () => null,
+      getLinksByValue: () => null,
       history$: null,
     },
     states: {

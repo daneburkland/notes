@@ -21,18 +21,20 @@ export const placeholderNode = {
 };
 
 function previousSiblingPath(path: any) {
-  const previousSiblingPath = [...path];
-  previousSiblingPath[path.length - 1]--;
-  return previousSiblingPath;
+  // const previousSiblingPath = [...path];
+  // previousSiblingPath[path.length - 1]--;
+  // return previousSiblingPath;
+  return [...path.slice(0, path.length - 1), path[path.length - 1] - 1];
 }
 
 function nextSiblingPath(path: any) {
-  const nextSiblingPath = [...path];
-  nextSiblingPath[path.length - 1]++;
-  return nextSiblingPath;
+  // const nextSiblingPath = [...path];
+  // nextSiblingPath[path.length - 1]++;
+  // return nextSiblingPath;
+  return [...path.slice(0, path.length - 1), path[path.length - 1] + 1];
 }
 
-function isNodeEntryFirstChild([, path]: NodeEntry) {
+function isFirstChild([, path]: NodeEntry) {
   return !path[path.length - 1];
 }
 
@@ -43,12 +45,18 @@ const withLink = (editor: any) => {
     return element.type === "link" ? true : isInline(editor);
   };
 
-  editor.initLink = () => {
+  editor.closeBracket = () => {
     Transforms.insertText(editor, "]");
     Transforms.move(editor, { distance: 1, reverse: true });
   };
 
-  editor.parentListItemEntryFromPath = (path: any) => {
+  editor.getParentNodeAtSelection = () => {
+    const { path } = editor.selection.anchor;
+    const parentNode = Node.get(editor, path.slice(0, path.length - 1));
+    return parentNode;
+  };
+
+  editor.parentListItemFromPath = (path: any) => {
     if (!path) return;
 
     try {
@@ -107,7 +115,7 @@ const withLink = (editor: any) => {
 
   editor.insertBreak = () => {
     const { path } = editor.selection.anchor;
-    const [, parentListItemPath] = editor.parentListItemEntryFromPath(path);
+    const [, parentListItemPath] = editor.parentListItemFromPath(path);
 
     const elementListTuple = Array.from(
       Node.children(editor, parentListItemPath)
@@ -152,9 +160,9 @@ const withLink = (editor: any) => {
   editor.indentNode = () => {
     const { path } = editor.selection.anchor;
 
-    const parentListItemNodeEntry = editor.parentListItemEntryFromPath(path);
+    const parentListItemNodeEntry = editor.parentListItemFromPath(path);
 
-    if (isNodeEntryFirstChild(parentListItemNodeEntry)) {
+    if (isFirstChild(parentListItemNodeEntry)) {
       return;
     }
     const [, parentListItemPath] = parentListItemNodeEntry;
@@ -196,10 +204,9 @@ const withLink = (editor: any) => {
 
   editor.moveSubsequentListItemSiblingsIntoGrandParentList = () => {
     const { path } = editor.selection.anchor;
-    const [
-      parentListItem,
-      parentListItemPath,
-    ] = editor.parentListItemEntryFromPath(path);
+    const [parentListItem, parentListItemPath] = editor.parentListItemFromPath(
+      path
+    );
     const [grandparentList] = editor.grandParentListFromSelection();
     const parentLineItemPositionInList = grandparentList.children.indexOf(
       parentListItem
@@ -207,9 +214,9 @@ const withLink = (editor: any) => {
 
     const targetListPath = parentListItemPath.concat(1);
 
-    // If the list-item isn't the last in it's list
+    // If the list-item isn't the last in it's list and therefore has siblings to move
     if (grandparentList.children.length - 1 > parentLineItemPositionInList) {
-      // if the list-item doesn't already have a list beneath it
+      // If the list-item doesn't already have a list beneath it, create one
       if (parentListItem.children.length === 1) {
         Transforms.insertNodes(
           editor,
@@ -227,10 +234,8 @@ const withLink = (editor: any) => {
         i < grandparentList.children.length;
         i++
       ) {
-        let originPath = [
-          ...parentListItemPath.slice(0, parentListItemPath.length - 1),
-          parentListItemPath[parentListItemPath.length - 1] + 1,
-        ];
+        let originPath = nextSiblingPath(parentListItemPath);
+
         Transforms.moveNodes(editor, {
           at: originPath,
           to: targetListPath.concat(
@@ -250,7 +255,7 @@ const withLink = (editor: any) => {
     editor.moveSubsequentListItemSiblingsIntoGrandParentList();
 
     const { path } = editor.selection.anchor;
-    const [, parentListItemPath] = editor.parentListItemEntryFromPath(path);
+    const [, parentListItemPath] = editor.parentListItemFromPath(path);
     const [, grandParentListPath] = editor.grandParentListFromSelection();
     const [
       ,
@@ -328,12 +333,30 @@ const withLink = (editor: any) => {
         at: path,
       });
     });
-
-    return linkNodeEntriesToDestroy.map(([node]: NodeEntry) => node.id);
   };
 
+  editor.initLink = () => {
+    editor.deleteForward({ unit: "character" });
+    editor.deleteBackward({ unit: "character" });
+    editor.deleteForward({ unit: "character" });
+
+    Transforms.insertNodes(editor, {
+      type: "link",
+      isInline: true,
+      touched: true,
+      isActive: true,
+      id: uuid(),
+      value: "",
+      children: [{ text: "[]]" }],
+    });
+    Transforms.move(editor, { distance: 2, unit: "character", reverse: true });
+  };
+
+  // TODO: instead of creating link entries, this should sync their 'value's
   editor.createNewLinkNodeEntries = () => {
     const touchedTextWrapperEntries = editor.getTouchedTextWrapperEntries();
+    const touchedLinkEntries = editor.getTouchedLinkEntries();
+    console.log("touched", touchedLinkEntries);
 
     touchedTextWrapperEntries.forEach(([node, path]: NodeEntry) => {
       node.children.forEach((child: Node, i: number) => {
@@ -379,6 +402,7 @@ const withLink = (editor: any) => {
     });
   };
 
+  // This should prob be called something like 'mark...'
   editor.syncListItemSelection = () => {
     editor.createNewLinkNodeEntries();
 
@@ -397,9 +421,7 @@ const withLink = (editor: any) => {
     if (editor.selection) {
       const { path } = editor.selection.anchor;
       const parentListItemNodeEntry = editor.parentTextWrapperFromPath(path);
-      const parentTextWrapperPathNodeEntry = editor.parentTextWrapperFromPath(
-        path
-      );
+      const parentTextWrapperNodeEntry = editor.parentTextWrapperFromPath(path);
 
       if (parentListItemNodeEntry) {
         const [, parentListItemPath] = parentListItemNodeEntry;
@@ -413,8 +435,8 @@ const withLink = (editor: any) => {
         );
       }
 
-      if (parentTextWrapperPathNodeEntry) {
-        const [, parentTextWrapperPath] = parentTextWrapperPathNodeEntry;
+      if (parentTextWrapperNodeEntry) {
+        const [, parentTextWrapperPath] = parentTextWrapperNodeEntry;
         Transforms.setNodes(
           editor,
           { touched: true },
@@ -428,7 +450,7 @@ const withLink = (editor: any) => {
     }
   };
 
-  editor.getLinkEntries = (path: Path) => {
+  editor.getLinks = (path: Path) => {
     return Array.from(
       Editor.nodes(editor, {
         at: path || [0],
@@ -458,7 +480,7 @@ const withLink = (editor: any) => {
       id: node.id,
       value: node.value,
       pageTitle,
-      listItemNode: editor.parentListItemEntryFromPath(path)[0],
+      listItemNode: editor.parentListItemFromPath(path)[0],
     };
   };
 
@@ -485,47 +507,44 @@ const withLink = (editor: any) => {
     return !hasText;
   };
 
-  editor.doesListItemNodeEntryHaveListItemChildren = ([, path]: NodeEntry) => {
-    const hasText = !!Array.from(Node.texts(editor, { from: path })).filter(
-      ([{ text }]) => !!text
-    ).length;
-
-    return !hasText;
-  };
-
   editor.canBackspace = () => {
     const selection = editor.selection;
     if (!selection) return;
-    const parentListItemEntryFromPath = editor.parentListItemEntryFromPath(
+    const parentListItemFromPath = editor.parentListItemFromPath(
       selection.anchor.path
     );
-    if (!parentListItemEntryFromPath) return true;
-    const [, path] = parentListItemEntryFromPath;
+    if (!parentListItemFromPath) return true;
+    const [, path] = parentListItemFromPath;
 
     if (selection.anchor.offset === 0 && selection.focus.offset === 0) {
       const listItemChildren = editor.childListItemEntriesFromPath(path);
       const hasListItemChildren = !!listItemChildren.length;
-      // const isParentListItemFirstChild = isNodeEntryFirstChild(
-      //   parentListItemEntryFromPath
-      // );
 
       return !hasListItemChildren;
-      // this should be: can backspace unless it has children and it's the first child
-      // return !hasListItemChildren || !isParentListItemFirstChild;
     }
 
     return true;
   };
 
-  editor.handleBackSpace = () => {
+  editor.willInitLink = () => {
     const selection = editor.selection;
 
-    if (selection.anchor.offset === 0 && selection.focus.offset === 0) {
-      // Transforms.mergeNodes(editor);
-    }
+    // if selection, won't init link
+    if (selection.anchor.offset !== selection.focus.offset) return false;
 
-    // TODO: this needs to move a deleted list item's children after the end of it's previous
-    // sibling's children...can I use Transforms.mergeNodes?
+    const [node] = Array.from(
+      Editor.nodes(editor, {
+        at: selection.focus,
+        match: Text.isText,
+      })
+    )[0];
+
+    const prevCharacter = node.text[selection.focus.offset - 1];
+    return prevCharacter === "[";
+  };
+
+  editor.handleBackSpace = () => {
+    const selection = editor.selection;
 
     // if selection, nothing to do
     if (selection.anchor.offset !== selection.focus.offset) return;

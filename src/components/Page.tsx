@@ -1,13 +1,19 @@
-import React from "react";
+import React, { ReactElement } from "react";
 import { useService } from "@xstate/react";
 import Editor from "./Editor";
 import LinkNode from "./Link";
 import { NodeEntry } from "slate";
-import { KEY_DOWN, CHANGE } from "../machines/pageMachine";
+import { KEY_DOWN, CHANGE, CHANGE_TO_CHILD } from "../machines/pageMachine";
+import ReactDOM from "react-dom";
+import classnames from "classnames";
 
 import { useQuery } from "@apollo/react-hooks";
 import GET_LINKS_BY_VALUE from "../queries/getLinksByValue";
 import { IContext, IEvent } from "../machines/pageMachine";
+
+const Portal = ({ children }: { children: ReactElement }) => {
+  return ReactDOM.createPortal(children, document.body);
+};
 
 function Page({ page: pageMachine }: { page: any }) {
   const [current, send] = useService<IContext, IEvent>(pageMachine as any);
@@ -29,6 +35,7 @@ function Page({ page: pageMachine }: { page: any }) {
     if (event.key === "Backspace" && !current.context.canBackspace) {
       event.preventDefault();
     }
+
     send({
       type: KEY_DOWN,
       key: event.key,
@@ -37,12 +44,18 @@ function Page({ page: pageMachine }: { page: any }) {
   };
 
   const handleChange = (value: NodeEntry[]) => {
-    return send({ type: CHANGE, value });
+    send({ type: CHANGE, value });
   };
 
   if (current.matches("loading")) {
     return <div>Loading</div>;
   }
+
+  const isEditingLink =
+    current.matches({
+      loaded: { tooltip: { visible: { api: "idle" } } },
+    }) ||
+    current.matches({ loaded: { tooltip: { visible: { api: "loading" } } } });
 
   return (
     <div>
@@ -55,6 +68,18 @@ function Page({ page: pageMachine }: { page: any }) {
           onChange={handleChange}
           title={current.context.title}
         />
+        <Portal>
+          <div
+            ref={current.context.linkTooltipRef}
+            className={classnames(
+              { hidden: !isEditingLink },
+              "shadow-lg px-6 py-4 w-20 absolute"
+            )}
+            style={{ top: 0 }}
+          >
+            fooo0
+          </div>
+        </Portal>
       </div>
       <div>
         {linksLoading ? (

@@ -5,6 +5,14 @@ import classnames from "classnames";
 export default function (props: any) {
   const { element } = props;
 
+  if (element.touched) {
+    return (
+      <span className="relative">
+        <span>{props.children}</span>
+      </span>
+    );
+  }
+
   return (
     <Link
       to={{ pathname: `/page/${element.value}` }}

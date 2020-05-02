@@ -8,11 +8,13 @@ import UPSERT_LINKS from "./mutations/upsertLinks";
 import UPSERT_PAGE from "./mutations/upsertPage";
 import DELETE_LINKS from "./mutations/deleteLinks";
 import GET_OR_CREATE_PAGE from "./mutations/getOrCreatePage";
+import GET_LINKS_BY_VALUE from "./queries/getLinksByValue";
 import { useMutation } from "@apollo/react-hooks";
 import { fromEventPattern } from "rxjs";
 import { Interpreter } from "xstate";
 import { IContext } from "./machines/pageMachine";
 import { createBrowserHistory } from "history";
+import { useLazyQuery } from "./client";
 
 export const AppContext = React.createContext({
   state: {},
@@ -24,6 +26,7 @@ export function App() {
   const [upsertLinks] = useMutation(UPSERT_LINKS);
   const [upsertPage] = useMutation(UPSERT_PAGE);
   const [deleteLinks] = useMutation(DELETE_LINKS);
+  const getLinksByValue = useLazyQuery(GET_LINKS_BY_VALUE);
   const [getOrCreatePage] = useMutation(GET_OR_CREATE_PAGE);
   const history = useHistory();
   const history$ = fromEventPattern(history.listen);
@@ -34,6 +37,7 @@ export function App() {
       upsertPage,
       deleteLinks,
       getOrCreatePage,
+      getLinksByValue,
       history$,
     },
   });
