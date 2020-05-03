@@ -12,7 +12,7 @@ import GET_LINKS_BY_VALUE from "./queries/getLinksByValue";
 import { useMutation } from "@apollo/react-hooks";
 import { fromEventPattern } from "rxjs";
 import { Interpreter } from "xstate";
-import { IContext } from "./machines/pageMachine";
+import { IContext } from "./machines/page";
 import { createBrowserHistory } from "history";
 import { useLazyQuery } from "./client";
 

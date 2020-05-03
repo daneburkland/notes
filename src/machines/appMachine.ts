@@ -1,6 +1,6 @@
 import Route from "route-parser";
 import { Machine, assign, spawn, Interpreter } from "xstate";
-import createPageMachine, { IContext as IPageContext } from "./pageMachine";
+import createPageMachine, { IContext as IPageContext } from "./page";
 import { map } from "rxjs/operators";
 import { todayDateString } from "../utils/datetime";
 

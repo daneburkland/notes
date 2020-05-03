@@ -1,9 +1,26 @@
-import { Machine, assign, actions, sendParent } from "xstate";
+import { Machine, assign, actions, StateNodeConfig } from "xstate";
 import { Node, createEditor, Editor, Path, NodeEntry, Range } from "slate";
-import withLink, { placeholderNode } from "../plugins/withLink";
+import withLink, { placeholderNode } from "../../plugins/withLink";
 import { withReact, ReactEditor } from "slate-react";
 import { createRef } from "react";
-const { send, cancel } = actions;
+import pageSyncState from "./syncState";
+import loadingState from "./loadingState";
+import tooltipState from "./tooltipState";
+
+import {
+  CLOSE_BRACKET,
+  KEY_DOWN,
+  CHANGE,
+  BACKSPACE,
+  UNINDENT_NODE,
+  INDENT_NODE,
+  INIT_LINK,
+  LINK_CREATED,
+  INSERT_BREAK,
+  SYNC_LIST_ITEM,
+} from "./events";
+
+const { send } = actions;
 
 function arraysEqual(a: any, b: any) {
   if (a === b) return true;
@@ -16,36 +33,17 @@ function arraysEqual(a: any, b: any) {
   return true;
 }
 
-export const CLOSE_BRACKET = "CLOSE_BRACKET";
-export const KEY_DOWN = "KEY_DOWN";
-export const CHANGE = "CHANGE";
-export const SYNC = "SYNC";
-export const BACKSPACE = "BACKSPACE";
-export const UNINDENT_NODE = "UNINDENT_NODE";
-export const SELECT_LINK = "SELECT_LINK";
-export const INDENT_NODE = "INDENT_NODE";
-export const INIT_LINK = "INIT_LINK";
-export const LINK_CREATED = "LINK_CREATED";
-export const LINK_UPDATED = "LINK_UPDATED";
-export const INSERT_BREAK = "INSERT_BREAK";
-export const SYNC_LIST_ITEM = "SYNC_LIST_ITEM";
-export const SET_SELECTED_LIST_ITEM_NODE_LINK_CHILDREN =
-  "SET_SELECTED_LIST_ITEM_NODE_LINK_CHILDREN";
-export const GO_TO_SELECTION_NOT_AT_FIRST_CHILD =
-  "GO_TO_SELECTION_NOT_AT_FIRST_CHILD";
-export const GO_TO_SELECTION_AT_FIRST_CHILD = "GO_TO_SELECTION_AT_FIRST_CHILD";
-
 export interface IContext {
   editor: Editor;
   selectedListItemPath: Path | null;
   previousSelectedListItemPath: Path | null;
   upsertLinks(links: any): any;
   upsertPage(page: any): any;
-  getOrCreatePage(variables: any): Promise<any>;
-  deleteLinks(linkIds: any): any;
-  getLinksByValue(value: any): Promise<any>;
-  value: Node[] | any[];
   title: string;
+  value: Node[] | any[];
+  deleteLinks(linkIds: any): any;
+  getOrCreatePage(variables: any): Promise<any>;
+  getLinksByValue(value: any): Promise<any>;
   placeholderNode: Node;
   canBackspace: boolean;
   links: NodeEntry[];
@@ -62,6 +60,13 @@ export interface ISchema {
     loading: {};
     loaded: {
       states: {
+        sync: {
+          states: {
+            unsynced: {};
+            synced: {};
+            syncing: {};
+          };
+        };
         base: {};
         tooltip: {
           states: {
@@ -134,32 +139,6 @@ const checkSelectedListItem = ({
   } else return { type: "" };
 };
 
-function invokeFetchPage({ title, getOrCreatePage }: IContext) {
-  return getOrCreatePage({
-    variables: {
-      page: { title, node: placeholderNode, isDaily: true },
-    },
-  });
-}
-
-function invokeFetchLinks({ getLinksByValue, linkValueAtSelection }: IContext) {
-  return getLinksByValue({
-    value: `%${linkValueAtSelection}%`,
-  });
-}
-
-function setValue(_: IContext, event: any) {
-  return [event.data.data.insert_page.returning[0].node];
-}
-
-function setTitle(_: IContext, event: any) {
-  return event.data.data.insert_page.returning[0].title;
-}
-
-function setFilteredExistingLinks(_: IContext, event: any) {
-  return event.data.data.link;
-}
-
 function canBackspace({ editor }: IContext) {
   return editor.canBackspace();
 }
@@ -189,8 +168,8 @@ const createPageMachine = ({
         selectedListItemPath: null,
         previousSelectedListItemPath: null,
         value: [],
-        links: [],
         prevLinks: [],
+        links: [],
         filteredExistingLinks: [],
         linkTooltipRef: createRef(),
         linkValueAtSelection: "",
@@ -199,24 +178,15 @@ const createPageMachine = ({
       states: {
         failed: {},
         loading: {
-          invoke: {
-            id: "fetch-page",
-            src: invokeFetchPage,
-            onDone: {
-              target: "loaded",
-              actions: [
-                assign<IContext>({
-                  value: setValue,
-                  title: setTitle,
-                }),
-              ],
-            },
-            onError: "failed",
-          },
+          ...loadingState,
         },
         loaded: {
           type: "parallel",
           states: {
+            sync: {
+              ...(pageSyncState as StateNodeConfig<IContext, any, IEvent>),
+              initial: "synced",
+            },
             base: {
               on: {
                 [CHANGE]: {
@@ -238,20 +208,6 @@ const createPageMachine = ({
                       delay: 100,
                       id: "checkSelectedListItem",
                     }),
-                    cancel("syncTimeout"),
-                    send(SYNC, {
-                      delay: 2000,
-                      id: "syncTimeout",
-                    }),
-                  ],
-                },
-                [SYNC]: {
-                  actions: [
-                    assign<IContext>({
-                      prevLinks: ({ links }: IContext) => links,
-                      links: ({ editor }: IContext) => editor.getLinks(),
-                    }),
-                    "sync",
                   ],
                 },
                 [SYNC_LIST_ITEM]: {
@@ -284,102 +240,8 @@ const createPageMachine = ({
               },
             },
             tooltip: {
+              ...(tooltipState as StateNodeConfig<IContext, any, IEvent>),
               initial: "hidden",
-              states: {
-                hidden: {
-                  id: "hidden",
-                  on: {
-                    [CHANGE]: {
-                      target: "visible",
-                      cond: { type: "isEditingLinkNode" },
-                    },
-                  },
-                },
-                visible: {
-                  id: "visible",
-                  type: "parallel",
-                  states: {
-                    base: {
-                      entry: [
-                        assign<IContext>({
-                          activeLinkId: ({ editor }: IContext) =>
-                            editor.getActiveLinkId(),
-                        }),
-                        "positionTooltip",
-                      ],
-                      exit: [
-                        assign<IContext>({
-                          activeLinkId: null,
-                        }),
-                      ],
-                      on: {
-                        [CHANGE]: [
-                          {
-                            target: "#hidden",
-                            cond: { type: "isNotEditingLinkNode" },
-                          },
-                          {
-                            target: "base",
-                            cond: { type: "isEditingNewLinkNode" },
-                          },
-                        ],
-                        [SELECT_LINK]: {
-                          actions: ["setSelectedLinkValue", send(LINK_UPDATED)],
-                        },
-                        [LINK_UPDATED]: {
-                          target: "#hidden",
-                        },
-                      },
-                    },
-                    data: {
-                      initial: "loading",
-                      states: {
-                        idle: {
-                          on: {
-                            [CHANGE]: {
-                              target: "loading",
-                              actions: [
-                                assign<IContext>({
-                                  linkValueAtSelection: ({
-                                    editor,
-                                  }: IContext) => {
-                                    if (editor.selection) {
-                                      const node = Node.get(
-                                        editor,
-                                        editor.selection.anchor.path
-                                      );
-
-                                      if (!node.text) return null;
-
-                                      return editor.stripBrackets(node.text);
-                                    }
-                                    return "";
-                                  },
-                                }),
-                                sendParent(CHANGE),
-                              ],
-                            },
-                          },
-                        },
-                        loading: {
-                          invoke: {
-                            id: "fetch-links",
-                            src: invokeFetchLinks,
-                            onDone: {
-                              target: "idle",
-                              actions: [
-                                assign<IContext>({
-                                  filteredExistingLinks: setFilteredExistingLinks,
-                                }),
-                              ],
-                            },
-                          },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
             },
           },
         },
@@ -404,7 +266,6 @@ const createPageMachine = ({
       },
       actions: {
         positionTooltip: ({ linkTooltipRef, editor }: IContext) => {
-          console.log("poritions");
           const { selection } = editor;
           if (selection && Range.isCollapsed(selection)) {
             setTimeout(() => {
@@ -458,30 +319,6 @@ const createPageMachine = ({
 
             editor.syncListItemSelection();
           }, 1);
-        },
-        sync: ({
-          upsertPage,
-          title,
-          value,
-          prevLinks,
-          links,
-          deleteLinks,
-        }: IContext) => {
-          const prevLinkIds = prevLinks.map(([node]: NodeEntry) => node.id);
-          const linkIds = links.map(([node]: NodeEntry) => node.id);
-
-          const destroyedLinkIds = prevLinkIds.filter(
-            (id) => !linkIds.includes(id)
-          );
-
-          if (!!destroyedLinkIds.length) {
-            deleteLinks({ variables: { linkIds: destroyedLinkIds } });
-            // TODO: .then(delete pages where count of link#value (page.title) is 0 and page isEmpty)
-          }
-
-          upsertPage({
-            variables: { page: { node: value[0], title } },
-          });
         },
         backspace: ({ editor, canBackspace }: IContext) => {
           if (canBackspace) {

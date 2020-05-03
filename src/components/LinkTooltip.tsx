@@ -1,7 +1,7 @@
 import React, { ReactElement } from "react";
 import ReactDOM from "react-dom";
 import classnames from "classnames";
-import { SELECT_LINK } from "../machines/pageMachine";
+import { SELECT_LINK } from "../machines/page/events";
 
 const Portal = ({ children }: { children: ReactElement }) => {
   return ReactDOM.createPortal(children, document.body);

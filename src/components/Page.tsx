@@ -3,12 +3,12 @@ import { useService } from "@xstate/react";
 import Editor from "./Editor";
 import LinkNode from "./Link";
 import { NodeEntry } from "slate";
-import { KEY_DOWN, CHANGE } from "../machines/pageMachine";
+import { KEY_DOWN, CHANGE } from "../machines/page/events";
 import LinkToolTip from "./LinkTooltip";
 
 import { useQuery } from "@apollo/react-hooks";
 import GET_LINKS_BY_VALUE from "../queries/getLinksByValue";
-import { IContext, IEvent } from "../machines/pageMachine";
+import { IContext, IEvent } from "../machines/page";
 
 export const PageContext = React.createContext({ activeLinkId: "" });
 
@@ -48,7 +48,7 @@ function Page({ page: pageMachine }: { page: any }) {
     return <div>Loading</div>;
   }
 
-  console.log("activeLinkId", current.context.activeLinkId);
+  console.log(JSON.stringify(current.value));
 
   return (
     <div>
