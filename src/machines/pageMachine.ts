@@ -69,7 +69,7 @@ export interface ISchema {
             visible: {
               states: {
                 base: {};
-                api: {
+                data: {
                   states: {
                     idle: {};
                     loading: {};
@@ -331,7 +331,7 @@ const createPageMachine = ({
                         },
                       },
                     },
-                    api: {
+                    data: {
                       initial: "loading",
                       states: {
                         idle: {
@@ -404,6 +404,7 @@ const createPageMachine = ({
       },
       actions: {
         positionTooltip: ({ linkTooltipRef, editor }: IContext) => {
+          console.log("poritions");
           const { selection } = editor;
           if (selection && Range.isCollapsed(selection)) {
             setTimeout(() => {
@@ -439,7 +440,7 @@ const createPageMachine = ({
             editor.removeBrokenLinkNodeEntries();
             editor.syncLinkNodeValues();
 
-            const serializedLinkEntries = editor.serializeLinkEntries({
+            const serializedLinkEntries = editor.serializeTouchedLinkEntries({
               pageTitle: title,
             });
 

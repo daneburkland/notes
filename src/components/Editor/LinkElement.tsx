@@ -1,14 +1,13 @@
-import React, { useContext } from "react";
-import { PageContext } from "../Page";
-import { Link } from "react-router-dom";
+import React from "react";
+import { useHistory } from "react-router-dom";
 import classnames from "classnames";
 
 export default function (props: any) {
   const { element } = props;
 
-  const { activeLinkId } = useContext(PageContext);
+  const history = useHistory();
 
-  if (activeLinkId === props.element.id) {
+  if (element.touched) {
     return (
       <span className="relative">
         <span>{props.children}</span>
@@ -17,8 +16,8 @@ export default function (props: any) {
   }
 
   return (
-    <Link
-      to={{ pathname: `/page/${element.value}` }}
+    <a
+      onMouseDown={() => history.push(`/page/${element.value}`)}
       className={classnames("cursor-pointer", {
         "text-gray-500": element.touched,
         "text-blue-500 hover:text-blue-800": !element.touched,
@@ -26,6 +25,6 @@ export default function (props: any) {
       {...props.attributes}
     >
       {props.children}
-    </Link>
+    </a>
   );
 }

@@ -4,7 +4,9 @@ import { Link } from "react-router-dom";
 import GET_PAGES from "../queries/getPages";
 
 function PageList() {
-  const { data, loading } = useQuery(GET_PAGES);
+  const { data, loading } = useQuery(GET_PAGES, {
+    fetchPolicy: "network-only",
+  });
 
   return (
     <table className="table-auto">

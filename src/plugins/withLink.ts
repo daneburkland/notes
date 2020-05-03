@@ -353,7 +353,6 @@ const withLink = (editor: any) => {
 
     touchedLinkEntries.forEach((nodeEntry: NodeEntry) => {
       const value = editor.getLinkValueFromNodeEntry(nodeEntry);
-      console.log(nodeEntry[1]);
       Transforms.setNodes(
         editor,
         { value },
@@ -490,7 +489,7 @@ const withLink = (editor: any) => {
     };
   };
 
-  editor.serializeLinkEntries = ({
+  editor.serializeTouchedLinkEntries = ({
     pageTitle,
   }: {
     linkEntries: NodeEntry[];
@@ -578,14 +577,27 @@ const withLink = (editor: any) => {
   };
 
   editor.setLinkValue = ({ value }: any) => {
-    const parent = editor.getParentNodeAtSelection();
+    const { selection } = editor;
+    const ancestors = Array.from(
+      Node.ancestors(editor, selection.anchor.path, { reverse: true })
+    );
+    const [node, path] = ancestors.find(
+      (ancestor) => ancestor[0].type === "link"
+    ) as NodeEntry;
+
     Transforms.removeNodes(editor, {
       match: ({ type }) => type === "link",
     });
-    Transforms.insertNodes(editor, {
-      ...parent,
-      children: [{ text: `[[${value}]]` }],
-    });
+    Transforms.insertNodes(
+      editor,
+      {
+        ...node,
+        children: [{ text: `[[${value}]]` }],
+      },
+      {
+        at: path,
+      }
+    );
   };
 
   return editor;
