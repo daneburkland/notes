@@ -21,16 +21,10 @@ export const placeholderNode = {
 };
 
 function previousSiblingPath(path: any) {
-  // const previousSiblingPath = [...path];
-  // previousSiblingPath[path.length - 1]--;
-  // return previousSiblingPath;
   return [...path.slice(0, path.length - 1), path[path.length - 1] - 1];
 }
 
 function nextSiblingPath(path: any) {
-  // const nextSiblingPath = [...path];
-  // nextSiblingPath[path.length - 1]++;
-  // return nextSiblingPath;
   return [...path.slice(0, path.length - 1), path[path.length - 1] + 1];
 }
 
@@ -51,6 +45,7 @@ const withLink = (editor: any) => {
   };
 
   editor.getParentNodeAtSelection = () => {
+    if (!editor.selection) return null;
     const { path } = editor.selection.anchor;
     const parentNode = Node.get(editor, path.slice(0, path.length - 1));
     return parentNode;
@@ -339,12 +334,12 @@ const withLink = (editor: any) => {
     editor.deleteForward({ unit: "character" });
     editor.deleteBackward({ unit: "character" });
     editor.deleteForward({ unit: "character" });
+    console.log("initting");
 
     Transforms.insertNodes(editor, {
       type: "link",
       isInline: true,
       touched: true,
-      isActive: true,
       id: uuid(),
       value: "",
       children: [{ text: "[]]" }],
@@ -352,59 +347,70 @@ const withLink = (editor: any) => {
     Transforms.move(editor, { distance: 2, unit: "character", reverse: true });
   };
 
-  // TODO: instead of creating link entries, this should sync their 'value's
-  editor.createNewLinkNodeEntries = () => {
-    const touchedTextWrapperEntries = editor.getTouchedTextWrapperEntries();
+  editor.syncLinkNodeValues = () => {
+    // const touchedTextWrapperEntries = editor.getTouchedTextWrapperEntries();
     const touchedLinkEntries = editor.getTouchedLinkEntries();
-    console.log("touched", touchedLinkEntries);
 
-    touchedTextWrapperEntries.forEach(([node, path]: NodeEntry) => {
-      node.children.forEach((child: Node, i: number) => {
-        if (child.type) return;
-
-        const matches = [] as any[];
-        let match;
-        let reg = /\[\[(.*?)\]\]/g;
-        while ((match = reg.exec(child.text))) {
-          matches.push(match);
+    touchedLinkEntries.forEach((nodeEntry: NodeEntry) => {
+      const value = editor.getLinkValueFromNodeEntry(nodeEntry);
+      console.log(nodeEntry[1]);
+      Transforms.setNodes(
+        editor,
+        { value },
+        {
+          at: nodeEntry[1],
+          match: ({ type }: Node) => type === "link",
         }
-
-        matches.reverse().forEach((match) => {
-          Transforms.delete(editor, {
-            at: {
-              anchor: { path: path.concat(i), offset: match.index },
-              focus: {
-                path: path.concat(i),
-                offset: match.index + match[0].length,
-              },
-            },
-          });
-
-          Transforms.insertNodes(
-            editor,
-            {
-              type: "link",
-              isInline: true,
-              touched: true,
-              id: uuid(),
-              value: editor.stripBrackets(match[0]),
-              children: [{ text: match[0] }],
-            },
-            {
-              at: {
-                path: path.concat(i),
-                offset: match.index,
-              },
-            }
-          );
-        });
-      });
+      );
     });
+
+    // touchedTextWrapperEntries.forEach(([node, path]: NodeEntry) => {
+    //   node.children.forEach((child: Node, i: number) => {
+    //     if (child.type) return;
+
+    //     const matches = [] as any[];
+    //     let match;
+    //     let reg = /\[\[(.*?)\]\]/g;
+    //     while ((match = reg.exec(child.text))) {
+    //       matches.push(match);
+    //     }
+
+    //     matches.reverse().forEach((match) => {
+    //       Transforms.delete(editor, {
+    //         at: {
+    //           anchor: { path: path.concat(i), offset: match.index },
+    //           focus: {
+    //             path: path.concat(i),
+    //             offset: match.index + match[0].length,
+    //           },
+    //         },
+    //       });
+
+    //       Transforms.insertNodes(
+    //         editor,
+    //         {
+    //           type: "link",
+    //           isInline: true,
+    //           touched: true,
+    //           id: uuid(),
+    //           value: editor.stripBrackets(match[0]),
+    //           children: [{ text: match[0] }],
+    //         },
+    //         {
+    //           at: {
+    //             path: path.concat(i),
+    //             offset: match.index,
+    //           },
+    //         }
+    //       );
+    //     });
+    //   });
+    // });
   };
 
   // This should prob be called something like 'mark...'
   editor.syncListItemSelection = () => {
-    editor.createNewLinkNodeEntries();
+    // editor.syncLinkNodeValues();
 
     Transforms.unsetNodes(editor, "touched", {
       at: [0],
@@ -561,6 +567,25 @@ const withLink = (editor: any) => {
     if (charToDelete === "[" && charAfterCursor === "]") {
       editor.deleteForward({ unit: "character" });
     }
+  };
+
+  editor.getActiveLinkId = () => {
+    const parentNodeAtSelection = editor.getParentNodeAtSelection();
+    if (!parentNodeAtSelection || parentNodeAtSelection.type !== "link") {
+      return null;
+    }
+    return parentNodeAtSelection.id;
+  };
+
+  editor.setLinkValue = ({ value }: any) => {
+    const parent = editor.getParentNodeAtSelection();
+    Transforms.removeNodes(editor, {
+      match: ({ type }) => type === "link",
+    });
+    Transforms.insertNodes(editor, {
+      ...parent,
+      children: [{ text: `[[${value}]]` }],
+    });
   };
 
   return editor;

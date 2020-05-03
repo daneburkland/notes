@@ -2,7 +2,7 @@ import { Machine, assign, actions, sendParent } from "xstate";
 import { Node, createEditor, Editor, Path, NodeEntry, Range } from "slate";
 import withLink, { placeholderNode } from "../plugins/withLink";
 import { withReact, ReactEditor } from "slate-react";
-import { Ref, createRef } from "react";
+import { createRef } from "react";
 const { send, cancel } = actions;
 
 function arraysEqual(a: any, b: any) {
@@ -19,12 +19,14 @@ function arraysEqual(a: any, b: any) {
 export const CLOSE_BRACKET = "CLOSE_BRACKET";
 export const KEY_DOWN = "KEY_DOWN";
 export const CHANGE = "CHANGE";
-export const CHANGE_TO_CHILD = "CHANGE_TO_CHILD";
 export const SYNC = "SYNC";
 export const BACKSPACE = "BACKSPACE";
 export const UNINDENT_NODE = "UNINDENT_NODE";
+export const SELECT_LINK = "SELECT_LINK";
 export const INDENT_NODE = "INDENT_NODE";
 export const INIT_LINK = "INIT_LINK";
+export const LINK_CREATED = "LINK_CREATED";
+export const LINK_UPDATED = "LINK_UPDATED";
 export const INSERT_BREAK = "INSERT_BREAK";
 export const SYNC_LIST_ITEM = "SYNC_LIST_ITEM";
 export const SET_SELECTED_LIST_ITEM_NODE_LINK_CHILDREN =
@@ -51,6 +53,7 @@ export interface IContext {
   filteredExistingLinks: any[];
   linkTooltipRef: any;
   linkValueAtSelection: string;
+  activeLinkId: string | null;
 }
 
 export interface ISchema {
@@ -85,15 +88,17 @@ export type IEvent =
   | { type: "KEY_DOWN"; key: string; shiftKey: boolean }
   // TODO: the value type should be generic
   | { type: "CHANGE"; value: any }
-  | { type: "CHANGE_TO_CHILD"; value: any }
   | { type: "INDENT_NODE" }
   | { type: "BACKSPACE" }
   | { type: "SYNC" }
   | { type: "INSERT_BREAK" }
+  | { type: "SELECT_LINK" }
+  | { type: "LINK_UPDATED" }
   | { type: "SYNC_LIST_ITEM" }
   | { type: "SET_SELECTED_LIST_ITEM_NODE_LINK_CHILDREN" }
   | { type: "UNINDENT_NODE" }
   | { type: "INIT_LINK" }
+  | { type: "LINK_CREATED" }
   | {
       type: "CLOSE_BRACKET";
     };
@@ -152,11 +157,10 @@ function setTitle(_: IContext, event: any) {
 }
 
 function setFilteredExistingLinks(_: IContext, event: any) {
-  console.log(event);
-  return [];
+  return event.data.data.link;
 }
 
-function canBackspace({ editor }: IContext, event: any) {
+function canBackspace({ editor }: IContext) {
   return editor.canBackspace();
 }
 
@@ -190,6 +194,7 @@ const createPageMachine = ({
         filteredExistingLinks: [],
         linkTooltipRef: createRef(),
         linkValueAtSelection: "",
+        activeLinkId: "",
       },
       states: {
         failed: {},
@@ -229,7 +234,10 @@ const createPageMachine = ({
                         return !!nodeEntry && nodeEntry[1];
                       },
                     }),
-                    send(checkSelectedListItem),
+                    send(checkSelectedListItem, {
+                      delay: 100,
+                      id: "checkSelectedListItem",
+                    }),
                     cancel("syncTimeout"),
                     send(SYNC, {
                       delay: 2000,
@@ -268,8 +276,10 @@ const createPageMachine = ({
                   actions: ["closeBracket"],
                 },
                 [INIT_LINK]: {
+                  actions: ["closeBracket", "initLink", send(LINK_CREATED)],
+                },
+                [LINK_CREATED]: {
                   target: "tooltip.visible",
-                  actions: ["closeBracket", "initLink"],
                 },
               },
             },
@@ -288,13 +298,36 @@ const createPageMachine = ({
                 visible: {
                   id: "visible",
                   type: "parallel",
-                  entry: ["positionTooltip"],
                   states: {
                     base: {
+                      entry: [
+                        assign<IContext>({
+                          activeLinkId: ({ editor }: IContext) =>
+                            editor.getActiveLinkId(),
+                        }),
+                        "positionTooltip",
+                      ],
+                      exit: [
+                        assign<IContext>({
+                          activeLinkId: null,
+                        }),
+                      ],
                       on: {
-                        [CHANGE]: {
+                        [CHANGE]: [
+                          {
+                            target: "#hidden",
+                            cond: { type: "isNotEditingLinkNode" },
+                          },
+                          {
+                            target: "base",
+                            cond: { type: "isEditingNewLinkNode" },
+                          },
+                        ],
+                        [SELECT_LINK]: {
+                          actions: ["setSelectedLinkValue", send(LINK_UPDATED)],
+                        },
+                        [LINK_UPDATED]: {
                           target: "#hidden",
-                          cond: { type: "isNotEditingLinkNode" },
                         },
                       },
                     },
@@ -355,16 +388,22 @@ const createPageMachine = ({
     {
       guards: {
         isEditingLinkNode: ({ editor }: IContext) => {
-          return editor.getParentNodeAtSelection().type === "link";
+          const parentNodeAtSelection = editor.getParentNodeAtSelection();
+          if (!parentNodeAtSelection) return false;
+          return parentNodeAtSelection.type === "link";
         },
         isNotEditingLinkNode: ({ editor }: IContext) => {
-          console.log("isNot");
-          return editor.getParentNodeAtSelection().type !== "link";
+          const parentNodeAtSelection = editor.getParentNodeAtSelection();
+          if (!parentNodeAtSelection) return true;
+          return parentNodeAtSelection.type !== "link";
+        },
+        isEditingNewLinkNode: ({ editor, activeLinkId }: IContext) => {
+          const parent = editor.getParentNodeAtSelection();
+          return parent.id !== activeLinkId;
         },
       },
       actions: {
         positionTooltip: ({ linkTooltipRef, editor }: IContext) => {
-          console.log("positioning");
           const { selection } = editor;
           if (selection && Range.isCollapsed(selection)) {
             setTimeout(() => {
@@ -398,9 +437,8 @@ const createPageMachine = ({
         }: IContext) => {
           setTimeout(() => {
             editor.removeBrokenLinkNodeEntries();
+            editor.syncLinkNodeValues();
 
-            // FIXME: this isn't doing anything bc links are being created on [[]]
-            editor.createNewLinkNodeEntries();
             const serializedLinkEntries = editor.serializeLinkEntries({
               pageTitle: title,
             });
@@ -463,6 +501,9 @@ const createPageMachine = ({
         },
         initLink: ({ editor }: IContext) => {
           editor.initLink();
+        },
+        setSelectedLinkValue: ({ editor }: IContext, event: any) => {
+          editor.setLinkValue({ value: event.node.value });
         },
       },
     }

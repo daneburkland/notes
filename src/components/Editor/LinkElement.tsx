@@ -1,11 +1,14 @@
-import React from "react";
+import React, { useContext } from "react";
+import { PageContext } from "../Page";
 import { Link } from "react-router-dom";
 import classnames from "classnames";
 
 export default function (props: any) {
   const { element } = props;
 
-  if (element.touched) {
+  const { activeLinkId } = useContext(PageContext);
+
+  if (activeLinkId === props.element.id) {
     return (
       <span className="relative">
         <span>{props.children}</span>

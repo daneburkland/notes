@@ -1,19 +1,16 @@
-import React, { ReactElement } from "react";
+import React from "react";
 import { useService } from "@xstate/react";
 import Editor from "./Editor";
 import LinkNode from "./Link";
 import { NodeEntry } from "slate";
-import { KEY_DOWN, CHANGE, CHANGE_TO_CHILD } from "../machines/pageMachine";
-import ReactDOM from "react-dom";
-import classnames from "classnames";
+import { KEY_DOWN, CHANGE } from "../machines/pageMachine";
+import LinkToolTip from "./LinkTooltip";
 
 import { useQuery } from "@apollo/react-hooks";
 import GET_LINKS_BY_VALUE from "../queries/getLinksByValue";
 import { IContext, IEvent } from "../machines/pageMachine";
 
-const Portal = ({ children }: { children: ReactElement }) => {
-  return ReactDOM.createPortal(children, document.body);
-};
+export const PageContext = React.createContext({ activeLinkId: "" });
 
 function Page({ page: pageMachine }: { page: any }) {
   const [current, send] = useService<IContext, IEvent>(pageMachine as any);
@@ -51,35 +48,24 @@ function Page({ page: pageMachine }: { page: any }) {
     return <div>Loading</div>;
   }
 
-  const isEditingLink =
-    current.matches({
-      loaded: { tooltip: { visible: { api: "idle" } } },
-    }) ||
-    current.matches({ loaded: { tooltip: { visible: { api: "loading" } } } });
+  console.log("activeLinkId", current.context.activeLinkId);
 
   return (
     <div>
       <div className="mb-10">
         <h1 className="text-5xl mb-6">{current.context.title}</h1>
-        <Editor
-          value={current.context.value}
-          editor={current.context.editor}
-          onKeyDown={handleKeyDown}
-          onChange={handleChange}
-          title={current.context.title}
-        />
-        <Portal>
-          <div
-            ref={current.context.linkTooltipRef}
-            className={classnames(
-              { hidden: !isEditingLink },
-              "shadow-lg px-6 py-4 w-20 absolute"
-            )}
-            style={{ top: 0 }}
-          >
-            fooo0
-          </div>
-        </Portal>
+        <PageContext.Provider
+          value={{ activeLinkId: current.context.activeLinkId as string }}
+        >
+          <Editor
+            value={current.context.value}
+            editor={current.context.editor}
+            onKeyDown={handleKeyDown}
+            onChange={handleChange}
+            title={current.context.title}
+          />
+        </PageContext.Provider>
+        <LinkToolTip current={current} send={send} />
       </div>
       <div>
         {linksLoading ? (
