@@ -1,13 +1,16 @@
-import React from "react";
+import React, { useContext } from "react";
 import { useHistory } from "react-router-dom";
 import classnames from "classnames";
+import { PageContext } from "../Page";
 
 export default function (props: any) {
   const { element } = props;
+  const { touchedLinkNodes } = useContext(PageContext);
+  const touchedIds = touchedLinkNodes.map((node: any) => node.id);
 
   const history = useHistory();
 
-  if (element.touched) {
+  if (touchedIds.includes(element.id)) {
     return (
       <span className="relative">
         <span>{props.children}</span>

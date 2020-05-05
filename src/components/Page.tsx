@@ -10,7 +10,10 @@ import { useQuery } from "@apollo/react-hooks";
 import GET_LINKS_BY_VALUE from "../queries/getLinksByValue";
 import { IContext, IEvent } from "../machines/page";
 
-export const PageContext = React.createContext({ activeLinkId: "" });
+export const PageContext = React.createContext({
+  activeLinkId: "",
+  touchedLinkNodes: [] as any,
+});
 
 function Page({ page: pageMachine }: { page: any }) {
   const [current, send] = useService<IContext, IEvent>(pageMachine as any);
@@ -22,6 +25,7 @@ function Page({ page: pageMachine }: { page: any }) {
     GET_LINKS_BY_VALUE,
     {
       variables: { value: title },
+      fetchPolicy: "network-only",
     }
   );
 
@@ -48,14 +52,27 @@ function Page({ page: pageMachine }: { page: any }) {
     return <div>Loading</div>;
   }
 
-  console.log(JSON.stringify(current.value));
+  const isSynced = current.matches({ loaded: { sync: "synced" } });
+
+  console.log(current.value);
 
   return (
     <div>
       <div className="mb-10">
-        <h1 className="text-5xl mb-6">{current.context.title}</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-5xl">{current.context.title}</h1>
+          <svg height="16" width="16">
+            <circle cx="8" cy="8" r="8" fill={isSynced ? "green" : "yellow"} />
+          </svg>
+        </div>
+        {!!current.context.errorMessage && (
+          <span>{current.context.errorMessage}</span>
+        )}
         <PageContext.Provider
-          value={{ activeLinkId: current.context.activeLinkId as string }}
+          value={{
+            activeLinkId: current.context.activeLinkId as string,
+            touchedLinkNodes: current.context.touchedLinkNodes,
+          }}
         >
           <Editor
             value={current.context.value}

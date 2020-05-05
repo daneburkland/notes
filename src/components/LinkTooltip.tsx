@@ -10,9 +10,11 @@ const Portal = ({ children }: { children: ReactElement }) => {
 function LinkTooltip({ send, current }: any) {
   const isEditingLink =
     current.matches({
-      loaded: { tooltip: { visible: { data: "idle" } } },
+      loaded: { editingLink: { editing: { data: "idle" } } },
     }) ||
-    current.matches({ loaded: { tooltip: { visible: { data: "loading" } } } });
+    current.matches({
+      loaded: { editingLink: { editing: { data: "loading" } } },
+    });
 
   const hasMatches = !!current.context.filteredExistingLinks.length;
   return (

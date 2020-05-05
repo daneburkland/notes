@@ -45,7 +45,7 @@ export function App() {
 
   return (
     <AppContext.Provider value={{ state, send, page }}>
-      <ul className="flex py-4">
+      <ul className="flex justify-between py-4">
         <li className="mr-6">
           <Link
             to={{ pathname: "/all" }}

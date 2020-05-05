@@ -1,6 +1,7 @@
 import { actions, assign } from "xstate";
 import { NodeEntry } from "slate";
 import { IContext } from ".";
+import { ApolloCurrentQueryResult } from "apollo-boost";
 const { send, cancel } = actions;
 
 const SYNC = "SYNC";
@@ -24,14 +25,18 @@ const pageSyncState = {
       actions: [
         assign<IContext>({
           prevLinks: ({ links }: IContext) => links,
-          links: ({ editor }: IContext) => editor.getLinks(),
+          links: ({ editor }: IContext) => editor.getLinkNodeEntries(),
         }),
+        // TODO: these are causing another CHANGE event
+        // "removeBrokenLinkNodeEntries",
+        // "setLinkNodeValues",
       ],
     },
   },
   states: {
     unsynced: {},
     synced: {},
+    failure: {},
     syncing: {
       invoke: {
         src: ({
@@ -67,7 +72,12 @@ const pageSyncState = {
           target: "synced",
         },
         onError: {
-          target: "synced",
+          target: "failure",
+          actions: assign({
+            errorMessage: (context, event: ApolloCurrentQueryResult<any>) => {
+              return event.data.toString();
+            },
+          }),
         },
       },
     },
