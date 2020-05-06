@@ -15,6 +15,7 @@ import { Interpreter } from "xstate";
 import { IContext } from "./machines/page";
 import { createBrowserHistory } from "history";
 import { useLazyQuery } from "./client";
+import GET_PAGES_BY_TITLE from "./queries/getPagesByTitle";
 
 export const AppContext = React.createContext({
   state: {},
@@ -27,6 +28,7 @@ export function App() {
   const [upsertPage] = useMutation(UPSERT_PAGE);
   const [deleteLinks] = useMutation(DELETE_LINKS);
   const getLinksByValue = useLazyQuery(GET_LINKS_BY_VALUE);
+  const getPagesByTitle = useLazyQuery(GET_PAGES_BY_TITLE);
   const [getOrCreatePage] = useMutation(GET_OR_CREATE_PAGE);
   const history = useHistory();
   const history$ = fromEventPattern(history.listen);
@@ -38,6 +40,7 @@ export function App() {
       deleteLinks,
       getOrCreatePage,
       getLinksByValue,
+      getPagesByTitle,
       history$,
     },
   });

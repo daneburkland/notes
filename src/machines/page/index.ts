@@ -30,12 +30,13 @@ export interface IContext {
   deleteLinks(linkIds: any): any;
   getOrCreatePage(variables: any): Promise<any>;
   getLinksByValue(value: any): Promise<any>;
+  getPagesByTitle(value: any): Promise<any>;
   placeholderNode: Node;
   canBackspace: boolean;
   links: NodeEntry[];
   prevLinks: NodeEntry[];
-  filteredExistingLinks: any[];
-  linkTooltipRef: any;
+  filteredPages: any[];
+  PagesTooltipRef: any;
   linkValueAtSelection: string;
   activeLinkId: string | null;
   errorMessage: string;
@@ -133,6 +134,7 @@ const createPageMachine = ({
   title,
   getOrCreatePage,
   getLinksByValue,
+  getPagesByTitle,
 }: any) =>
   Machine<IContext, ISchema, IEvent>(
     {
@@ -147,12 +149,13 @@ const createPageMachine = ({
         getOrCreatePage,
         placeholderNode,
         getLinksByValue,
+        getPagesByTitle,
         canBackspace: true,
         value: [],
         prevLinks: [],
         links: [],
-        filteredExistingLinks: [],
-        linkTooltipRef: createRef(),
+        filteredPages: [],
+        PagesTooltipRef: createRef(),
         linkValueAtSelection: "",
         activeLinkId: "",
         errorMessage: "",
@@ -225,7 +228,7 @@ const createPageMachine = ({
         },
       },
       actions: {
-        positionTooltip: ({ linkTooltipRef, editor }: IContext) => {
+        positionTooltip: ({ PagesTooltipRef, editor }: IContext) => {
           const { selection } = editor;
           if (selection && Range.isCollapsed(selection)) {
             setTimeout(() => {
@@ -234,19 +237,18 @@ const createPageMachine = ({
               const wordBefore =
                 start && Editor.before(editor, start, { unit: "word" });
               const before = wordBefore && Editor.before(editor, wordBefore);
-              const beforeRange = before && Editor.range(editor, before, start);
+              let beforeRange = before && Editor.range(editor, before, start);
 
-              if (!beforeRange) return;
               const domRange = ReactEditor.toDOMRange(
                 editor as ReactEditor,
-                beforeRange as Range
+                beforeRange || (editor.selection as Range)
               );
               const rect = domRange.getBoundingClientRect();
-              if (linkTooltipRef?.current) {
-                linkTooltipRef.current.style.top = `${
+              if (PagesTooltipRef?.current) {
+                PagesTooltipRef.current.style.top = `${
                   rect.top + window.pageYOffset + 24
                 }px`;
-                linkTooltipRef.current.style.left = `${
+                PagesTooltipRef.current.style.left = `${
                   rect.left + window.pageXOffset
                 }px`;
               }
@@ -274,7 +276,7 @@ const createPageMachine = ({
           editor.initLink();
         },
         setSelectedLinkValue: ({ editor }: IContext, event: any) => {
-          editor.setLinkValue({ value: event.node.value });
+          editor.setLinkValue({ value: event.node.title });
         },
         // TODO: seems like these can be called in the tootlip state
         removeBrokenLinkNodeEntries: ({

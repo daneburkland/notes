@@ -335,6 +335,7 @@ const withLink = (editor: any) => {
     Transforms.insertNodes(editor, {
       type: "link",
       isInline: true,
+      isIncomplete: true,
       id: uuid(),
       value: "",
       children: [{ text: "[]]" }],
@@ -349,7 +350,8 @@ const withLink = (editor: any) => {
       const value = editor.getLinkValueFromNodeEntry(nodeEntry);
       Transforms.setNodes(
         editor,
-        { value },
+        // links need to have some characters
+        { value, isIncomplete: !value.trim().length },
         {
           at: nodeEntry[1],
           match: ({ type }: Node) => type === "link",
@@ -396,7 +398,10 @@ const withLink = (editor: any) => {
       .getLinkNodeEntries({ matchFn })
       .map((linkEntry: NodeEntry) =>
         editor.serializeLinkEntry({ linkEntry, pageTitle })
-      );
+      )
+      .filter((linkNode: Node) => {
+        return !linkNode.isIncomplete;
+      });
     return serializedLinkEntries;
   };
 

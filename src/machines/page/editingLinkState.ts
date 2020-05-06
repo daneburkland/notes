@@ -6,14 +6,14 @@ import { placeholderNode } from "../../plugins/withLink";
 
 const { send } = actions;
 
-function invokeFetchLinks({ getLinksByValue, linkValueAtSelection }: IContext) {
-  return getLinksByValue({
-    value: `%${linkValueAtSelection}%`,
+function invokeFetchPages({ getPagesByTitle, linkValueAtSelection }: IContext) {
+  return getPagesByTitle({
+    title: `%${linkValueAtSelection}%`,
   });
 }
 
-function setFilteredExistingLinks(_: IContext, event: any) {
-  return event.data.data.link;
+function setFilteredPages(_: IContext, event: any) {
+  return event.data.data.page;
 }
 
 function getOrCreatePages({
@@ -33,7 +33,6 @@ function getOrCreatePages({
   if (!!serializedLinkEntries.length) {
     return Promise.all(
       serializedLinkEntries.map((linkEntry: any) => {
-        debugger;
         return getOrCreatePage({
           variables: {
             page: { title: linkEntry.value, node: placeholderNode },
@@ -123,13 +122,11 @@ const editingLinkState = {
         base: {
           entry: [
             assign<IContext>({
-              // This should only return the id if the selection is collapsed
               activeLinkId: ({ editor }: IContext) => editor.getActiveLinkId(),
               touchedLinkNodes: ({ editor }: IContext) =>
                 editor.touchedLinkNodes(),
-              // This should return the ids of the
             }),
-            // "positionTooltip",
+            "positionTooltip",
           ],
           exit: [
             assign<IContext>({
@@ -188,12 +185,12 @@ const editingLinkState = {
             loading: {
               invoke: {
                 id: "fetch-links",
-                src: invokeFetchLinks,
+                src: invokeFetchPages,
                 onDone: {
                   target: "idle",
                   actions: [
                     assign<IContext>({
-                      filteredExistingLinks: setFilteredExistingLinks,
+                      filteredPages: setFilteredPages,
                     }),
                   ],
                 },

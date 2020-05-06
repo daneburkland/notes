@@ -10,7 +10,9 @@ export default function (props: any) {
 
   const history = useHistory();
 
-  if (touchedIds.includes(element.id)) {
+  // it's possible for a link to be in process of creation, user refresh
+  // we don't want to make those clickable
+  if (touchedIds.includes(element.id) || element.isIncomplete) {
     return (
       <span className="relative">
         <span>{props.children}</span>
@@ -20,7 +22,9 @@ export default function (props: any) {
 
   return (
     <a
-      onMouseDown={() => history.push(`/page/${element.value}`)}
+      onMouseDown={() =>
+        history.push(`/page/${encodeURIComponent(element.value)}`)
+      }
       className={classnames("cursor-pointer", {
         "text-gray-500": element.touched,
         "text-blue-500 hover:text-blue-800": !element.touched,

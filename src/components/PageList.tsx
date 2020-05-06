@@ -2,6 +2,7 @@ import React from "react";
 import { useQuery } from "@apollo/react-hooks";
 import { Link } from "react-router-dom";
 import GET_PAGES from "../queries/getPages";
+import { formatRelative } from "date-fns";
 
 function PageList() {
   const { data, loading } = useQuery(GET_PAGES, {
@@ -9,11 +10,11 @@ function PageList() {
   });
 
   return (
-    <table className="table-auto">
+    <table className="table-auto w-full">
       <thead>
         <tr>
-          <th className="px-4 py-2">Title</th>
-          <th className="px-4 py-2">ID</th>
+          <th className="text-left px-4 py-2">Title</th>
+          <th className="text-left px-4 py-2">Last updated</th>
         </tr>
       </thead>
       <tbody>
@@ -31,7 +32,9 @@ function PageList() {
                   </Link>
                 }
               </td>
-              <td className="border px-4 py-2">{page.id}</td>
+              <td className="border px-4 py-2">
+                {formatRelative(new Date(page.updated_at), new Date())}
+              </td>
             </tr>
           ))}
       </tbody>

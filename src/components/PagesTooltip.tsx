@@ -7,7 +7,7 @@ const Portal = ({ children }: { children: ReactElement }) => {
   return ReactDOM.createPortal(children, document.body);
 };
 
-function LinkTooltip({ send, current }: any) {
+function PagesTooltip({ send, current }: any) {
   const isEditingLink =
     current.matches({
       loaded: { editingLink: { editing: { data: "idle" } } },
@@ -16,25 +16,25 @@ function LinkTooltip({ send, current }: any) {
       loaded: { editingLink: { editing: { data: "loading" } } },
     });
 
-  const hasMatches = !!current.context.filteredExistingLinks.length;
+  const hasMatches = !!current.context.filteredPages.length;
   return (
     <Portal>
       <div
-        ref={current.context.linkTooltipRef}
+        ref={current.context.PagesTooltipRef}
         className={classnames(
           { hidden: !isEditingLink || !hasMatches },
           "shadow-lg absolute bg-white border-gray-500 border overflow-y-auto"
         )}
         style={{ top: 0, width: 200, maxHeight: 200 }}
       >
-        {current.context.filteredExistingLinks.map((node: any) => {
+        {current.context.filteredPages.map((node: any) => {
           return (
             <div
-              key={node.id}
+              key={node.title}
               className="cursor-pointer hover:bg-gray-300 py-1 px-5"
               onMouseDown={() => send({ type: SELECT_LINK, node })}
             >
-              {node.value}
+              {node.title}
             </div>
           );
         })}
@@ -43,4 +43,4 @@ function LinkTooltip({ send, current }: any) {
   );
 }
 
-export default LinkTooltip;
+export default PagesTooltip;

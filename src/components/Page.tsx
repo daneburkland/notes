@@ -4,7 +4,7 @@ import Editor from "./Editor";
 import LinkNode from "./Link";
 import { NodeEntry } from "slate";
 import { KEY_DOWN, CHANGE } from "../machines/page/events";
-import LinkToolTip from "./LinkTooltip";
+import PagesTooltip from "./PagesTooltip";
 
 import { useQuery } from "@apollo/react-hooks";
 import GET_LINKS_BY_VALUE from "../queries/getLinksByValue";
@@ -54,11 +54,9 @@ function Page({ page: pageMachine }: { page: any }) {
 
   const isSynced = current.matches({ loaded: { sync: "synced" } });
 
-  console.log(current.value);
-
   return (
     <div>
-      <div className="mb-10">
+      <div className="pb-40">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-5xl">{current.context.title}</h1>
           <svg height="16" width="16">
@@ -82,7 +80,7 @@ function Page({ page: pageMachine }: { page: any }) {
             title={current.context.title}
           />
         </PageContext.Provider>
-        <LinkToolTip current={current} send={send} />
+        <PagesTooltip current={current} send={send} />
       </div>
       <div>
         {linksLoading ? (

@@ -19,6 +19,7 @@ interface IContext {
   getOrCreatePage(variables: any): any;
   deleteLinks(linkIds: any): any;
   getLinksByValue(value: any): any;
+  getPagesByTitle(value: any): any;
   history$: any;
 }
 
@@ -49,6 +50,7 @@ const resolveSelectedPageContext = ({
     deleteLinks,
     getOrCreatePage,
     getLinksByValue,
+    getPagesByTitle,
   } = context;
 
   if (page) {
@@ -65,6 +67,7 @@ const resolveSelectedPageContext = ({
       deleteLinks,
       getOrCreatePage,
       getLinksByValue,
+      getPagesByTitle,
       title: pageTitle,
     })
   );
@@ -101,6 +104,7 @@ const appMachine = Machine<IContext, ISchema, IEvent>(
       deleteLinks: () => null,
       getOrCreatePage: () => null,
       getLinksByValue: () => null,
+      getPagesByTitle: () => null,
       history$: null,
     },
     states: {
