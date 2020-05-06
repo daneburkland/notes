@@ -56,7 +56,7 @@ function Page({ page: pageMachine }: { page: any }) {
 
   return (
     <div>
-      <div className="pb-40">
+      <div className="mb-20">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-5xl">{current.context.title}</h1>
           <svg height="16" width="16">

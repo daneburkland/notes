@@ -44,13 +44,6 @@ const withLink = (editor: any) => {
     Transforms.move(editor, { distance: 1, reverse: true });
   };
 
-  editor.getNodeAtSelection = () => {
-    if (!editor.selection) return null;
-    const { path } = editor.selection.anchor;
-    const node = Node.get(editor, path);
-    return node;
-  };
-
   editor.getParentNodeAtSelection = () => {
     if (!editor.selection) return null;
     const { path } = editor.selection.anchor;
@@ -87,20 +80,6 @@ const withLink = (editor: any) => {
     );
 
     return children;
-  };
-
-  editor.parentTextWrapperFromPath = (path: any) => {
-    if (!path) return;
-
-    try {
-      const ancestors = Array.from(
-        Node.ancestors(editor, path, { reverse: true })
-      );
-
-      return ancestors.find((ancestor) => ancestor[0].type === "text-wrapper");
-    } catch (e) {
-      console.log(`Couldn't find parent text-wrapper`);
-    }
   };
 
   editor.grandParentListFromSelection = () => {
@@ -350,7 +329,7 @@ const withLink = (editor: any) => {
       const value = editor.getLinkValueFromNodeEntry(nodeEntry);
       Transforms.setNodes(
         editor,
-        // links need to have some characters
+        // links need to have at least one character
         { value, isIncomplete: !value.trim().length },
         {
           at: nodeEntry[1],
@@ -403,14 +382,6 @@ const withLink = (editor: any) => {
         return !linkNode.isIncomplete;
       });
     return serializedLinkEntries;
-  };
-
-  editor.isListItemNodeEntryEmpty = ([, path]: NodeEntry) => {
-    const hasText = !!Array.from(Node.texts(editor, { from: path })).filter(
-      ([{ text }]) => !!text
-    ).length;
-
-    return !hasText;
   };
 
   editor.canBackspace = () => {

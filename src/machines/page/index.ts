@@ -283,7 +283,6 @@ const createPageMachine = ({
           editor,
           touchedLinkNodes,
         }: IContext) => {
-          console.log("removing broken");
           setTimeout(() => {
             editor.removeBrokenLinkNodeEntries({ touchedLinkNodes });
           }, 0);

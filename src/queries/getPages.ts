@@ -1,7 +1,7 @@
 import gql from "graphql-tag";
 
 // Get all daily pages plus pages that have at least one link
-const GET_PAGE = gql`
+const GET_PAGES = gql`
   query GetPages {
     page(
       where: { _or: [{ links: {} }, { isDaily: { _eq: true } }] }
@@ -19,4 +19,4 @@ const GET_PAGE = gql`
   }
 `;
 
-export default GET_PAGE;
+export default GET_PAGES;
