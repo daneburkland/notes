@@ -9,6 +9,12 @@ const GET_OR_CREATE_PAGE = gql`
       returning {
         title
         node
+        references {
+          id
+        }
+        tags {
+          id
+        }
       }
     }
   }

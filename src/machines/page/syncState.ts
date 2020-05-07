@@ -1,7 +1,7 @@
 import { actions, assign } from "xstate";
-import { NodeEntry } from "slate";
 import { IContext } from ".";
 import { ApolloCurrentQueryResult } from "apollo-boost";
+import { NodeEntry } from "slate";
 const { send, cancel } = actions;
 
 const SYNC = "SYNC";
@@ -21,55 +21,44 @@ const pageSyncState = {
       ],
     },
     [SYNC]: {
-      target: ".syncing",
-      actions: [
-        assign<IContext>({
-          prevLinks: ({ links }: IContext) => links,
-          links: ({ editor }: IContext) => editor.getLinkNodeEntries(),
-        }),
-        // TODO: these are causing another CHANGE event
-        // "removeBrokenLinkNodeEntries",
-        // "setLinkNodeValues",
-      ],
+      target: ".syncingPage",
     },
   },
   states: {
     unsynced: {},
     synced: {},
     failure: {},
-    syncing: {
+    syncingTags: {
       invoke: {
-        src: ({
-          upsertPage,
-          title,
-          value,
-          prevLinks,
-          links,
-          deleteLinks,
-        }: IContext) => {
-          const prevLinkIds = prevLinks.map(([node]: NodeEntry) => node.id);
-          const linkIds = links.map(([node]: NodeEntry) => node.id);
-
-          const destroyedLinkIds = prevLinkIds.filter(
-            (id) => !linkIds.includes(id)
-          );
-
-          let deleteLinksPromise;
-          if (!!destroyedLinkIds.length) {
-            deleteLinksPromise = deleteLinks({
-              variables: { linkIds: destroyedLinkIds },
-            });
-            // TODO: .then(delete pages where count of link#value (page.title) is 0 and page isEmpty)
-          }
-
-          const upsertPagePromise = upsertPage({
-            variables: { page: { node: value[0], title } },
+        src: ({ editor, tags: persistedTags, deleteLinks }: IContext) => {
+          const tags = editor.getLinkNodeEntries();
+          const tagIds = tags.map(([node]: NodeEntry) => node.id);
+          const tagIdsToDestroy = persistedTags
+            .map(({ id }) => id)
+            .filter((id) => !tagIds.includes(id));
+          return deleteLinks({
+            variables: { linkIds: tagIdsToDestroy },
           });
-
-          return Promise.all([deleteLinksPromise, upsertPagePromise]);
         },
         onDone: {
           target: "synced",
+        },
+      },
+    },
+    syncingPage: {
+      invoke: {
+        src: ({ upsertPage, title, value }: IContext) => {
+          return upsertPage({
+            variables: { page: { node: value[0], title } },
+          });
+        },
+        onDone: {
+          target: "syncingTags",
+          actions: assign({
+            tags: (_, event: ApolloCurrentQueryResult<any>) => {
+              return event.data.data.insert_page.returning[0].tags;
+            },
+          }),
         },
         onError: {
           target: "failure",

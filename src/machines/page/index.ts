@@ -1,5 +1,5 @@
 import { Machine, assign, actions, StateNodeConfig } from "xstate";
-import { Node, createEditor, Editor, Path, NodeEntry, Range } from "slate";
+import { Node, createEditor, Editor, Range } from "slate";
 import withLink, { placeholderNode } from "../../plugins/withLink";
 import { withReact, ReactEditor } from "slate-react";
 import { createRef } from "react";
@@ -33,14 +33,13 @@ export interface IContext {
   getPagesByTitle(value: any): Promise<any>;
   placeholderNode: Node;
   canBackspace: boolean;
-  links: NodeEntry[];
-  prevLinks: NodeEntry[];
   filteredPages: any[];
   PagesTooltipRef: any;
   linkValueAtSelection: string;
   activeLinkId: string | null;
   errorMessage: string;
   touchedLinkNodes: Node[];
+  tags: any[];
 }
 
 export interface ISchema {
@@ -53,7 +52,9 @@ export interface ISchema {
           states: {
             unsynced: {};
             synced: {};
-            syncing: {};
+            failure: {};
+            syncingPage: {};
+            syncingTags: {};
           };
         };
         base: {};
@@ -84,7 +85,6 @@ export interface ISchema {
 
 export type IEvent =
   | { type: "KEY_DOWN"; key: string; shiftKey: boolean }
-  // TODO: the value type should be generic
   | { type: "CHANGE"; value: any }
   | { type: "INDENT_NODE" }
   | { type: "BACKSPACE" }
@@ -152,14 +152,13 @@ const createPageMachine = ({
         getPagesByTitle,
         canBackspace: true,
         value: [],
-        prevLinks: [],
-        links: [],
         filteredPages: [],
         PagesTooltipRef: createRef(),
         linkValueAtSelection: "",
         activeLinkId: "",
         errorMessage: "",
         touchedLinkNodes: [],
+        tags: [],
       },
       states: {
         failed: {},
@@ -232,25 +231,31 @@ const createPageMachine = ({
           const { selection } = editor;
           if (selection && Range.isCollapsed(selection)) {
             setTimeout(() => {
-              const [start] = Range.edges(selection);
-              console.log(start);
-              const wordBefore =
-                start && Editor.before(editor, start, { unit: "word" });
-              const before = wordBefore && Editor.before(editor, wordBefore);
-              let beforeRange = before && Editor.range(editor, before, start);
+              try {
+                const [start] = Range.edges(selection);
+                console.log(start);
+                const wordBefore =
+                  start && Editor.before(editor, start, { unit: "word" });
+                const before = wordBefore && Editor.before(editor, wordBefore);
+                let beforeRange = before && Editor.range(editor, before, start);
 
-              const domRange = ReactEditor.toDOMRange(
-                editor as ReactEditor,
-                beforeRange || (editor.selection as Range)
-              );
-              const rect = domRange.getBoundingClientRect();
-              if (PagesTooltipRef?.current) {
-                PagesTooltipRef.current.style.top = `${
-                  rect.top + window.pageYOffset + 24
-                }px`;
-                PagesTooltipRef.current.style.left = `${
-                  rect.left + window.pageXOffset
-                }px`;
+                const domRange = ReactEditor.toDOMRange(
+                  editor as ReactEditor,
+                  beforeRange || (editor.selection as Range)
+                );
+                const rect = domRange.getBoundingClientRect();
+                if (PagesTooltipRef?.current) {
+                  PagesTooltipRef.current.style.top = `${
+                    rect.top + window.pageYOffset + 24
+                  }px`;
+                  PagesTooltipRef.current.style.left = `${
+                    rect.left + window.pageXOffset
+                  }px`;
+                }
+              } catch (e) {
+                if (PagesTooltipRef?.current) {
+                  PagesTooltipRef.current.style.display = "hidden";
+                }
               }
             }, 0);
           }
@@ -278,7 +283,6 @@ const createPageMachine = ({
         setSelectedLinkValue: ({ editor }: IContext, event: any) => {
           editor.setLinkValue({ value: event.node.title });
         },
-        // TODO: seems like these can be called in the tootlip state
         removeBrokenLinkNodeEntries: ({
           editor,
           touchedLinkNodes,

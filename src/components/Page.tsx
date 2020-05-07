@@ -83,6 +83,7 @@ function Page({ page: pageMachine }: { page: any }) {
         <PagesTooltip current={current} send={send} />
       </div>
       <div>
+        <h3 className="text-lg mb-2 text-gray-600">References</h3>
         {linksLoading ? (
           <div>Loading links...</div>
         ) : (

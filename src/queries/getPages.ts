@@ -4,13 +4,13 @@ import gql from "graphql-tag";
 const GET_PAGES = gql`
   query GetPages {
     page(
-      where: { _or: [{ links: {} }, { isDaily: { _eq: true } }] }
+      where: { _or: [{ references: {} }, { isDaily: { _eq: true } }] }
       order_by: { updated_at: desc }
     ) {
       node
       title
       updated_at
-      links_aggregate {
+      references_aggregate {
         aggregate {
           count
         }

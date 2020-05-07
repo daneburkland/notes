@@ -8,6 +8,9 @@ const UPSERT_PAGE = gql`
     ) {
       returning {
         title
+        tags {
+          id
+        }
       }
     }
   }

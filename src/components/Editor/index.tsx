@@ -28,9 +28,17 @@ const renderElement = (props: any) => {
 
 const renderLeaf = (props: any) => <Leaf {...props} />;
 
-function Editor({ value, onChange, onKeyDown, editor, readOnly, title }: any) {
+function Editor({
+  value,
+  onChange,
+  onKeyDown,
+  editor,
+  readOnly,
+  title,
+  className,
+}: any) {
   return (
-    <div>
+    <div className={className}>
       <Slate editor={editor} value={value} onChange={onChange} key={title}>
         <Editable
           renderElement={renderElement}
