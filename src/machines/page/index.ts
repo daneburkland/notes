@@ -1,6 +1,6 @@
 import { Machine, assign, actions, StateNodeConfig } from "xstate";
 import { Node, createEditor, Editor, Range } from "slate";
-import withLink, { placeholderNode } from "../../plugins/withLink";
+import withLinks, { placeholderNode } from "../../plugins/withLinks";
 import { withReact, ReactEditor } from "slate-react";
 import { createRef } from "react";
 import pageSyncState from "./syncState";
@@ -141,7 +141,7 @@ const createPageMachine = ({
       id: `page-${title}`,
       initial: "loading",
       context: {
-        editor: withLink(withReact(createEditor())),
+        editor: withLinks(withReact(createEditor())),
         upsertLinks,
         upsertPage,
         deleteLinks,

@@ -8,7 +8,7 @@ import GET_PAGE from "./queries/getPages";
 import { createBrowserHistory } from "history";
 import { todayDateString } from "./utils/datetime";
 import GET_LINKS_BY_VALUE from "./queries/getLinksByValue";
-import { placeholderNode } from "./plugins/withLink";
+import { placeholderNode } from "./plugins/withLinks";
 
 const rootMocks = [
   {

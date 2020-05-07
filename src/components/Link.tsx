@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 import Editor from "./Editor";
 import { createEditor } from "slate";
-import withLink from "../plugins/withLink";
+import withLink from "../plugins/withLinks";
 import { withReact } from "slate-react";
 
 function wrapInList(node: any) {

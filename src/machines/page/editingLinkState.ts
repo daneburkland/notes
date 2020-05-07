@@ -2,7 +2,7 @@ import { assign, sendParent, actions } from "xstate";
 import { IContext } from ".";
 import { CHANGE, SELECT_LINK, LINK_UPDATED } from "./events";
 import { Node } from "slate";
-import { placeholderNode } from "../../plugins/withLink";
+import { placeholderNode } from "../../plugins/withLinks";
 
 const { send } = actions;
 

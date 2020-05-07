@@ -1,6 +1,6 @@
 import { assign } from "xstate";
 import { IContext } from "./index";
-import { placeholderNode } from "../../plugins/withLink";
+import { placeholderNode } from "../../plugins/withLinks";
 
 function invokeFetchPage({ title, getOrCreatePage }: IContext) {
   return getOrCreatePage({
