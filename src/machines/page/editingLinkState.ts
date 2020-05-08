@@ -1,10 +1,8 @@
-import { assign, sendParent, actions } from "xstate";
+import { assign, sendParent } from "xstate";
 import { IContext } from ".";
 import { CHANGE, SELECT_LINK, LINK_UPDATED } from "./events";
 import { Node } from "slate";
 import { placeholderNode } from "../../plugins/withLinks";
-
-const { send } = actions;
 
 function invokeFetchPages({ getPagesByTitle, linkValueAtSelection }: IContext) {
   return getPagesByTitle({
@@ -147,10 +145,13 @@ const editingLinkState = {
               },
             ],
             [SELECT_LINK]: {
-              actions: ["setSelectedLinkValue", send(LINK_UPDATED)],
+              actions: ["setSelectedLinkValue"],
+              after: {
+                1: { target: "#upsertingLinks" },
+              },
             },
             [LINK_UPDATED]: {
-              target: "#notEditing",
+              target: "#creatingNewPagesFromLinks",
             },
           },
         },

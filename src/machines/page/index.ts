@@ -233,7 +233,6 @@ const createPageMachine = ({
             setTimeout(() => {
               try {
                 const [start] = Range.edges(selection);
-                console.log(start);
                 const wordBefore =
                   start && Editor.before(editor, start, { unit: "word" });
                 const before = wordBefore && Editor.before(editor, wordBefore);
