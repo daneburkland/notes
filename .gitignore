@@ -11,6 +11,9 @@
 # api
 api.js
 
+#netlify
+.netlify/
+
 # production
 /build
 
