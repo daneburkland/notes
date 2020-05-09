@@ -4,6 +4,7 @@ import Leaf from "./Leaf";
 import ListItem from "./ListItem";
 import List from "./List";
 import TextWrapper from "./TextWrapper";
+import Hyperlink from "./Hyperlink";
 import Link from "./Link";
 import { Slate, Editable } from "slate-react";
 
@@ -14,6 +15,8 @@ interface ListItem {
 
 const renderElement = (props: any) => {
   switch (props.element.type) {
+    case "hyperlink":
+      return <Hyperlink {...props} />;
     case "list":
       return <List {...props} />;
     case "link":

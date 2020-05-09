@@ -1,12 +1,15 @@
 import { Machine, assign, actions, StateNodeConfig } from "xstate";
-import { Node, createEditor, Editor, Range } from "slate";
+import { Node, createEditor, Editor, Range, NodeEntry } from "slate";
 import { withHistory } from "slate-history";
 import withLinks, { placeholderNode } from "../../plugins/withLinks";
+import withHyperlinks from "../../plugins/withHyperlinks";
 import { withReact, ReactEditor } from "slate-react";
 import { createRef } from "react";
 import pageSyncState from "./syncState";
 import loadingState from "./loadingState";
 import editingLinkState from "./editingLinkState";
+import selectedListItemState from "./selectedListItemState";
+import { arraysEqual } from "../../utils/array";
 
 import {
   CLOSE_BRACKET,
@@ -41,6 +44,8 @@ export interface IContext {
   errorMessage: string;
   touchedLinkNodes: Node[];
   tags: any[];
+  prevSelectedListItem: NodeEntry | null;
+  selectedListItem: NodeEntry | null;
 }
 
 export interface ISchema {
@@ -49,6 +54,7 @@ export interface ISchema {
     loading: {};
     loaded: {
       states: {
+        selectedListItem: {};
         sync: {
           states: {
             unsynced: {};
@@ -142,7 +148,9 @@ const createPageMachine = ({
       id: `page-${title}`,
       initial: "loading",
       context: {
-        editor: withLinks(withHistory(withReact(createEditor()))),
+        editor: withLinks(
+          withHyperlinks(withHistory(withReact(createEditor())))
+        ),
         upsertLinks,
         upsertPage,
         deleteLinks,
@@ -160,6 +168,8 @@ const createPageMachine = ({
         errorMessage: "",
         touchedLinkNodes: [],
         tags: [],
+        prevSelectedListItem: null,
+        selectedListItem: null,
       },
       states: {
         failed: {},
@@ -172,6 +182,9 @@ const createPageMachine = ({
             sync: {
               ...(pageSyncState as StateNodeConfig<IContext, any, IEvent>),
               initial: "synced",
+            },
+            selectedListItem: {
+              ...(selectedListItemState as any),
             },
             base: {
               on: {
@@ -225,6 +238,13 @@ const createPageMachine = ({
         isEditingNewLinkNode: ({ editor, activeLinkId }: IContext) => {
           const parent = editor.getParentNodeAtSelection();
           return parent.id !== activeLinkId;
+        },
+        isSelectionAtNewListItem: ({
+          prevSelectedListItem,
+          selectedListItem,
+        }: IContext) => {
+          if (!selectedListItem || !prevSelectedListItem) return true;
+          return !arraysEqual(prevSelectedListItem[1], selectedListItem[1]);
         },
       },
       actions: {
@@ -294,6 +314,18 @@ const createPageMachine = ({
         setLinkNodeValues: ({ editor }: IContext) => {
           setTimeout(() => {
             editor.setLinkNodeValues();
+          }, 0);
+        },
+        wrapHyperlinks: ({ editor, prevSelectedListItem }: IContext) => {
+          if (!prevSelectedListItem) return;
+          setTimeout(() => {
+            editor.wrapHyperlinks(prevSelectedListItem);
+          }, 0);
+        },
+        unwrapHyperlinks: ({ editor, selectedListItem }: IContext) => {
+          if (!selectedListItem) return;
+          setTimeout(() => {
+            editor.unwrapHyperlinks(selectedListItem);
           }, 0);
         },
       },

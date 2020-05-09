@@ -72,6 +72,20 @@ const withLink = (editor: any) => {
     }
   };
 
+  editor.parentListItemEntryAtSelection = () => {
+    if (!editor.selection) return null;
+    const { selection } = editor;
+    const parentListItemEntry = Array.from(
+      Editor.nodes(editor, {
+        at: selection,
+        match: (n) => n.type === "list-item",
+        mode: "lowest",
+      })
+    );
+
+    return parentListItemEntry;
+  };
+
   editor.parentRootListItemFromPath = (path: any) => {
     if (!path) return;
 
