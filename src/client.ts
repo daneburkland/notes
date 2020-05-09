@@ -4,7 +4,7 @@ import { DocumentNode } from "graphql";
 import { uri } from "./api";
 
 export const client = new ApolloClient({
-  uri,
+  uri: uri(),
 });
 
 export function useLazyQuery<TData = any, TVariables = OperationVariables>(

@@ -31,6 +31,7 @@
     "route-parser": "0.0.5",
     "rxjs": "^6.5.5",
     "slate": "^0.57.2",
+    "slate-history": "^0.58.0",
     "slate-react": "^0.57.2",
     "tailwindcss": "^1.2.0",
     "typescript": "^3.7.5",

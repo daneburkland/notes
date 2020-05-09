@@ -49,7 +49,7 @@ function Page({ page: pageMachine }: { page: any }) {
   };
 
   if (current.matches("loading")) {
-    return <div>Loading</div>;
+    return <div>Waking up free Heroku dynos...</div>;
   }
 
   const isSynced = current.matches({ loaded: { sync: "synced" } });
@@ -58,7 +58,7 @@ function Page({ page: pageMachine }: { page: any }) {
     <div>
       <div className="mb-20">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-5xl">{current.context.title}</h1>
+          <h1 className="text-4xl truncate">{current.context.title}</h1>
           <svg height="16" width="16">
             <circle cx="8" cy="8" r="8" fill={isSynced ? "green" : "yellow"} />
           </svg>

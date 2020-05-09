@@ -72,6 +72,19 @@ const withLink = (editor: any) => {
     }
   };
 
+  editor.parentRootListItemFromPath = (path: any) => {
+    if (!path) return;
+
+    try {
+      const ancestors = Array.from(Node.ancestors(editor, path));
+
+      return ancestors.find((ancestor) => ancestor[0].type === "list-item");
+    } catch (e) {
+      console.log(`Couldn't find parent list item entry`);
+      return null;
+    }
+  };
+
   editor.childListItemEntriesFromPath = (path: any) => {
     if (!path) return;
 
@@ -295,6 +308,7 @@ const withLink = (editor: any) => {
   editor.removeBrokenLinkNodeEntries = () => {
     const linkNodeEntriesToDestroy = editor.getLinkNodesToDestroy();
 
+    // TODO: this can prob be .unwrapNodes
     linkNodeEntriesToDestroy.forEach(([node, path]: NodeEntry) => {
       Transforms.insertNodes(editor, node.children[0], {
         at: path,
@@ -360,7 +374,7 @@ const withLink = (editor: any) => {
       id: node.id,
       value: node.value,
       pageTitle,
-      listItemNode: editor.parentListItemFromPath(path)[0],
+      listItemNode: editor.parentRootListItemFromPath(path)[0],
     };
   };
 

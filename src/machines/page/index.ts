@@ -1,5 +1,6 @@
 import { Machine, assign, actions, StateNodeConfig } from "xstate";
 import { Node, createEditor, Editor, Range } from "slate";
+import { withHistory } from "slate-history";
 import withLinks, { placeholderNode } from "../../plugins/withLinks";
 import { withReact, ReactEditor } from "slate-react";
 import { createRef } from "react";
@@ -141,7 +142,7 @@ const createPageMachine = ({
       id: `page-${title}`,
       initial: "loading",
       context: {
-        editor: withLinks(withReact(createEditor())),
+        editor: withLinks(withHistory(withReact(createEditor()))),
         upsertLinks,
         upsertPage,
         deleteLinks,

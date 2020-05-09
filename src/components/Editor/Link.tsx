@@ -20,6 +20,13 @@ export default function (props: any) {
     );
   }
 
+  // TODO: readOnly something like this
+  // const mungedChildren = { ...props.children };
+  // const textNode = mungedChildren.props.node.children[0];
+  // mungedChildren.props.node.children[0] = {
+  //   text: textNode.text.slice(2, textNode.text.length - 2),
+  // };
+
   return (
     <a
       onMouseDown={() =>
