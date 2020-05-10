@@ -36,7 +36,8 @@
     "tailwindcss": "^1.2.0",
     "typescript": "^3.7.5",
     "uuid": "^7.0.3",
-    "xstate": "^4.9.1"
+    "xstate": "^4.9.1",
+    "postcss-cli": "^7.1.0"
   },
   "scripts": {
     "build:css": "postcss src/styles/tailwind.css -o src/styles/index.css",
@@ -51,8 +52,7 @@
     "extends": "react-app"
   },
   "devDependencies": {
-    "autoprefixer": "^9.7.6",
-    "postcss-cli": "^7.1.0"
+    "autoprefixer": "^9.7.6"
   },
   "browserslist": {
     "production": [
