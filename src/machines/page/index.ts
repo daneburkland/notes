@@ -3,6 +3,8 @@ import { Node, createEditor, Editor, Range, NodeEntry } from "slate";
 import { withHistory } from "slate-history";
 import withLinks, { placeholderNode } from "../../plugins/withLinks";
 import withHyperlinks from "../../plugins/withHyperlinks";
+import withHelpers from "../../plugins/withHelpers";
+import withList from "../../plugins/withList";
 import { withReact, ReactEditor } from "slate-react";
 import { createRef } from "react";
 import pageSyncState from "./syncState";
@@ -149,7 +151,9 @@ const createPageMachine = ({
       initial: "loading",
       context: {
         editor: withLinks(
-          withHyperlinks(withHistory(withReact(createEditor())))
+          withHyperlinks(
+            withHistory(withList(withHelpers(withReact(createEditor()))))
+          )
         ),
         upsertLinks,
         upsertPage,
