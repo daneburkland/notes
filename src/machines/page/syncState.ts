@@ -7,6 +7,18 @@ const { send, cancel } = actions;
 const SYNC = "SYNC";
 const CHANGE = "CHANGE";
 
+function upsertLinks({ upsertLinks, editor, title }: IContext) {
+  const serializedLinkEntries = editor.serializeLinks({
+    pageTitle: title,
+  });
+
+  if (!!serializedLinkEntries.length) {
+    return upsertLinks({
+      variables: { links: serializedLinkEntries },
+    });
+  } else return Promise.resolve();
+}
+
 const pageSyncState = {
   initial: "synced" as string,
   on: {
@@ -28,7 +40,22 @@ const pageSyncState = {
     unsynced: {},
     synced: {},
     failure: {},
-    syncingTags: {
+    syncingLinks: {
+      id: "upsertingLinks",
+      invoke: {
+        src: upsertLinks,
+        onDone: { target: "synced" },
+        onError: {
+          target: "failure",
+          actions: assign({
+            errorMessage: (_, event: ApolloCurrentQueryResult<any>) => {
+              return event.data.toString();
+            },
+          }),
+        },
+      },
+    },
+    deletingLinks: {
       invoke: {
         src: ({ editor, tags: persistedTags, deleteLinks }: IContext) => {
           const tags = editor.getLinkNodeEntries();
@@ -41,7 +68,7 @@ const pageSyncState = {
           });
         },
         onDone: {
-          target: "synced",
+          target: "syncingLinks",
         },
       },
     },
@@ -53,7 +80,7 @@ const pageSyncState = {
           });
         },
         onDone: {
-          target: "syncingTags",
+          target: "deletingLinks",
           actions: assign({
             tags: (_, event: ApolloCurrentQueryResult<any>) => {
               return event.data.data.insert_page.returning[0].tags;
@@ -63,7 +90,7 @@ const pageSyncState = {
         onError: {
           target: "failure",
           actions: assign({
-            errorMessage: (context, event: ApolloCurrentQueryResult<any>) => {
+            errorMessage: (_, event: ApolloCurrentQueryResult<any>) => {
               return event.data.toString();
             },
           }),

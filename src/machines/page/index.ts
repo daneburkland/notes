@@ -63,14 +63,14 @@ export interface ISchema {
             synced: {};
             failure: {};
             syncingPage: {};
-            syncingTags: {};
+            syncingLinks: {};
+            deletingLinks: {};
           };
         };
         base: {};
         editingLink: {
           states: {
             notEditing: {};
-            upsertingLinks: {};
             creatingNewPagesFromLinks: {};
             settingLinkNodeValues: {};
             syncing: {};
@@ -190,6 +190,10 @@ const createPageMachine = ({
             selectedListItem: {
               ...(selectedListItemState as any),
             },
+            editingLink: {
+              ...(editingLinkState as StateNodeConfig<IContext, any, IEvent>),
+              initial: "notEditing",
+            },
             base: {
               on: {
                 [CHANGE]: {
@@ -222,10 +226,6 @@ const createPageMachine = ({
                   actions: ["closeBracket", "initLink", send(LINK_CREATED)],
                 },
               },
-            },
-            editingLink: {
-              ...(editingLinkState as StateNodeConfig<IContext, any, IEvent>),
-              initial: "notEditing",
             },
           },
         },

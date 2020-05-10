@@ -41,27 +41,6 @@ function getOrCreatePages({
   } else return Promise.resolve();
 }
 
-function upsertLinks({
-  upsertLinks,
-  touchedLinkNodes,
-  editor,
-  title,
-}: IContext) {
-  const touchedLinkIds = touchedLinkNodes.map((node) => node.id);
-  const matchFn = (n: Node) =>
-    n.type === "link" && touchedLinkIds.includes(n.id);
-  const serializedLinkEntries = editor.serializeLinks({
-    pageTitle: title,
-    matchFn,
-  });
-
-  if (!!serializedLinkEntries.length) {
-    return upsertLinks({
-      variables: { links: serializedLinkEntries },
-    });
-  } else return Promise.resolve();
-}
-
 async function setLinkNodeValues({ editor }: IContext) {
   return new Promise((done) =>
     setTimeout(() => {
@@ -88,19 +67,12 @@ const editingLinkState = {
         },
       },
     },
-    upsertingLinks: {
-      id: "upsertingLinks",
-      invoke: {
-        src: upsertLinks,
-        onDone: { target: "notEditing" },
-      },
-    },
     creatingNewPagesFromLinks: {
       id: "creatingNewPagesFromLinks",
       invoke: {
         src: getOrCreatePages,
         onDone: {
-          target: "upsertingLinks",
+          target: "notEditing",
         },
       },
     },
