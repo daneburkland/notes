@@ -54,7 +54,6 @@ function Page({ page: pageMachine }: { page: any }) {
 
   const isSynced = current.matches({ loaded: { sync: "synced" } });
 
-  console.log(current.context.value);
   return (
     <div>
       <div className="mb-20">

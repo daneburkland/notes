@@ -10,19 +10,21 @@ const withHyperlinks = (editor: Editor) => {
   };
 
   editor.unwrapHyperlinks = ([, parentPath]: NodeEntry) => {
-    for (const [, path] of Editor.nodes(editor, {
-      at: parentPath,
-      match: (n) => n.type === "hyperlink",
-    })) {
-      if (path.length - parentPath.length > 2) {
-        return;
+    try {
+      for (const [, path] of Editor.nodes(editor, {
+        at: parentPath,
+        match: (n) => n.type === "hyperlink",
+      })) {
+        if (path.length - parentPath.length > 2) {
+          return;
+        }
+        Transforms.unwrapNodes(editor, {
+          at: path,
+          mode: "highest",
+        });
       }
-      Transforms.unwrapNodes(editor, {
-        at: path,
-        mode: "highest",
-      });
-
-      // Transforms.mergeNodes(editor, { at: path });
+    } catch (e) {
+      console.log("nothing to unwrap");
     }
   };
 
@@ -39,13 +41,18 @@ const withHyperlinks = (editor: Editor) => {
         }
         let match;
         let str = node.text;
+
+        let matches = [];
         while ((match = hyperlinkMatch.exec(str)) !== null) {
+          matches.push(match);
+        }
+        matches.reverse().forEach((match) => {
           Transforms.wrapNodes(
             editor,
             {
               type: "hyperlink",
               url: match[0],
-              children: [{ text: match[0] }],
+              children: [],
             },
             {
               mode: "lowest",
@@ -59,7 +66,7 @@ const withHyperlinks = (editor: Editor) => {
               split: true,
             }
           );
-        }
+        });
       }
     } catch (e) {
       console.log("no hyperlinks to wrap");

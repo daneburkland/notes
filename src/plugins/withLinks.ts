@@ -20,7 +20,7 @@ export const placeholderNode = {
   ],
 };
 
-function previousSiblingPath(path: any) {
+function getPreviousSiblingPath(path: any) {
   return [...path.slice(0, path.length - 1), path[path.length - 1] - 1];
 }
 
@@ -183,14 +183,19 @@ const withLink = (editor: any) => {
 
     const parentListItemsPreviousSibling = Node.get(
       editor,
-      previousSiblingPath(parentListItemPath)
+      getPreviousSiblingPath(parentListItemPath)
     );
 
-    const targetListNodePath = previousSiblingPath(parentListItemPath).concat(
-      1
+    const previousSiblingPath = getPreviousSiblingPath(parentListItemPath);
+    const hasListChild = !!parentListItemsPreviousSibling.children.find(
+      (child: Node) => child.type === "list"
     );
+
     // If it's just a text-wrapper (no list)
-    if (parentListItemsPreviousSibling.children.length === 1) {
+    if (!hasListChild) {
+      const targetListNodePath = previousSiblingPath.concat(
+        parentListItemsPreviousSibling.children.length
+      );
       Transforms.insertNodes(
         editor,
         {
@@ -204,13 +209,15 @@ const withLink = (editor: any) => {
         to: targetListNodePath.concat(0),
         at: parentListItemPath,
       });
-
-      // the sibling has two children: a text-wrapper and a list, we need to move
-      // the grandparent into this list
     } else {
-      const targetListNode = Node.get(editor, targetListNodePath);
+      const previousSiblingExistingListPath = previousSiblingPath.concat(
+        parentListItemsPreviousSibling.children.length - 1
+      );
+      const targetListNode = Node.get(editor, previousSiblingExistingListPath);
       Transforms.moveNodes(editor, {
-        to: targetListNodePath.concat(targetListNode.children.length),
+        to: previousSiblingExistingListPath.concat(
+          targetListNode.children.length
+        ),
         at: parentListItemPath,
       });
     }
@@ -226,12 +233,19 @@ const withLink = (editor: any) => {
       parentListItem
     );
 
-    const targetListPath = parentListItemPath.concat(1);
+    const targetListPath = parentListItemPath.concat(
+      parentListItem.children.length
+    );
+
+    const parentListItemChildList = parentListItem.children.find(
+      (child: Node) => child.type === "list"
+    );
+    const hasListChild = !!parentListItemChildList;
 
     // If the list-item isn't the last in it's list and therefore has siblings to move
     if (grandparentList.children.length - 1 > parentLineItemPositionInList) {
       // If the list-item doesn't already have a list beneath it, create one
-      if (parentListItem.children.length === 1) {
+      if (!hasListChild) {
         Transforms.insertNodes(
           editor,
           { type: "list", children: [] },
@@ -240,7 +254,7 @@ const withLink = (editor: any) => {
       }
 
       const targetListExistingItemCount =
-        parentListItem.children[1]?.children.length || 0;
+        parentListItemChildList?.children.length || 0;
 
       let i;
       for (
