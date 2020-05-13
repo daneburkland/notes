@@ -60,7 +60,7 @@ export function App() {
             All pages
           </Link>
         </li>
-        {!!process.env.REACT_APP_IS_DEMO && (
+        {!process.env.REACT_APP_IS_DEMO && (
           <li
             className="cursor-pointer text-blue-500 hover:text-blue-800"
             onClick={() => loginWithRedirect()}
