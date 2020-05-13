@@ -46,7 +46,7 @@ export function App() {
     },
   });
   const { page } = state.context;
-  const { loginWithRedirect } = useAuth0();
+  const { loginWithRedirect, isAuthenticated } = useAuth0();
 
   return (
     <AppContext.Provider value={{ state, send, page }}>
@@ -60,7 +60,7 @@ export function App() {
             All pages
           </Link>
         </li>
-        {!process.env.REACT_APP_IS_DEMO && (
+        {!process.env.REACT_APP_IS_DEMO && !isAuthenticated && (
           <li
             className="cursor-pointer text-blue-500 hover:text-blue-800"
             onClick={() => loginWithRedirect()}
@@ -83,16 +83,6 @@ export function App() {
     </AppContext.Provider>
   );
 }
-
-// const onRedirectCallback = (appState: any) => {
-//   window.history.replaceState(
-//     {},
-//     document.title,
-//     appState && appState.targetUrl
-//       ? appState.targetUrl
-//       : window.location.pathname
-//   );
-// };
 
 function AppWrapper() {
   return (
