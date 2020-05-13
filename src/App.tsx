@@ -1,5 +1,5 @@
-import React from "react";
-import { Router, Switch, Route, Link, useHistory } from "react-router-dom";
+import React, { useContext } from "react";
+import { Switch, Route, Link, useHistory } from "react-router-dom";
 import Page from "./components/Page";
 import PageList from "./components/PageList";
 import { useMachine } from "@xstate/react";
@@ -13,9 +13,9 @@ import { useMutation } from "@apollo/react-hooks";
 import { fromEventPattern } from "rxjs";
 import { Interpreter } from "xstate";
 import { IContext } from "./machines/page";
-import { createBrowserHistory } from "history";
-import { useLazyQuery } from "./client";
 import GET_PAGES_BY_TITLE from "./queries/getPagesByTitle";
+import { useAuth0 } from "./auth/react-auth0-wrapper";
+import { ApolloClientContext } from "./ApolloWrapper";
 
 export const AppContext = React.createContext({
   state: {},
@@ -24,6 +24,7 @@ export const AppContext = React.createContext({
 });
 
 export function App() {
+  const { useLazyQuery } = useContext(ApolloClientContext);
   const [upsertLinks] = useMutation(UPSERT_LINKS);
   const [upsertPage] = useMutation(UPSERT_PAGE);
   const [deleteLinks] = useMutation(DELETE_LINKS);
@@ -45,6 +46,7 @@ export function App() {
     },
   });
   const { page } = state.context;
+  const { loginWithRedirect } = useAuth0();
 
   return (
     <AppContext.Provider value={{ state, send, page }}>
@@ -57,6 +59,12 @@ export function App() {
           >
             All pages
           </Link>
+        </li>
+        <li
+          className="cursor-pointer text-blue-500 hover:text-blue-800"
+          onClick={() => loginWithRedirect()}
+        >
+          Log in
         </li>
       </ul>
       <Switch>
@@ -74,13 +82,20 @@ export function App() {
   );
 }
 
+// const onRedirectCallback = (appState: any) => {
+//   window.history.replaceState(
+//     {},
+//     document.title,
+//     appState && appState.targetUrl
+//       ? appState.targetUrl
+//       : window.location.pathname
+//   );
+// };
+
 function AppWrapper() {
-  const history = createBrowserHistory();
   return (
     <div className="App max-w-lg mx-auto">
-      <Router history={history}>
-        <App />
-      </Router>
+      <App />
     </div>
   );
 }

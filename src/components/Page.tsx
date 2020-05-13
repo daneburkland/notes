@@ -9,6 +9,7 @@ import PagesTooltip from "./PagesTooltip";
 import { useQuery } from "@apollo/react-hooks";
 import GET_LINKS_BY_VALUE from "../queries/getLinksByValue";
 import { IContext, IEvent } from "../machines/page";
+import { useAuth0 } from "../auth/react-auth0-wrapper";
 
 export const PageContext = React.createContext({
   activeLinkId: "",
@@ -17,6 +18,7 @@ export const PageContext = React.createContext({
 
 function Page({ page: pageMachine }: { page: any }) {
   const [current, send] = useService<IContext, IEvent>(pageMachine as any);
+  const { isAuthenticated } = useAuth0();
 
   const {
     context: { title },
@@ -73,6 +75,7 @@ function Page({ page: pageMachine }: { page: any }) {
           }}
         >
           <Editor
+            readOnly={!isAuthenticated && !process.env.REACT_APP_IS_DEMO}
             value={current.context.value}
             editor={current.context.editor}
             onKeyDown={handleKeyDown}
