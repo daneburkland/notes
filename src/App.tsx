@@ -60,12 +60,14 @@ export function App() {
             All pages
           </Link>
         </li>
-        <li
-          className="cursor-pointer text-blue-500 hover:text-blue-800"
-          onClick={() => loginWithRedirect()}
-        >
-          Log in
-        </li>
+        {!!process.env.REACT_APP_IS_DEMO && (
+          <li
+            className="cursor-pointer text-blue-500 hover:text-blue-800"
+            onClick={() => loginWithRedirect()}
+          >
+            Log in
+          </li>
+        )}
       </ul>
       <Switch>
         <Route path="/all">
