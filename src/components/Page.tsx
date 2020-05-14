@@ -60,7 +60,9 @@ function Page({ page: pageMachine }: { page: any }) {
     <div>
       <div className="mb-20">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-4xl truncate">{current.context.title}</h1>
+          <h1 className="text-4xl truncate font-black">
+            {current.context.title}
+          </h1>
           <svg height="16" width="16">
             <circle cx="8" cy="8" r="8" fill={isSynced ? "green" : "yellow"} />
           </svg>
@@ -85,16 +87,24 @@ function Page({ page: pageMachine }: { page: any }) {
         </PageContext.Provider>
         <PagesTooltip current={current} send={send} />
       </div>
-      <div>
+      <div className="mb-4">
         <h3 className="text-lg mb-2 text-gray-600">References</h3>
         {linksLoading ? (
-          <div>Loading links...</div>
+          <div>Loading references...</div>
         ) : (
           linkData.link.map((link: any) => (
             <LinkNode key={link.id} data={link} />
           ))
         )}
       </div>
+      <hr className="mb-4" />
+      {process.env.REACT_APP_AUTHOR && (
+        <div>
+          <span>
+            The working notes of <strong>{process.env.REACT_APP_AUTHOR}</strong>
+          </span>
+        </div>
+      )}
     </div>
   );
 }

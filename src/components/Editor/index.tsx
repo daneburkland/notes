@@ -44,6 +44,7 @@ function Editor({
     <div className={className}>
       <Slate editor={editor} value={value} onChange={onChange} key={title}>
         <Editable
+          spellCheck={false}
           renderElement={renderElement}
           renderLeaf={renderLeaf}
           onKeyDown={onKeyDown}

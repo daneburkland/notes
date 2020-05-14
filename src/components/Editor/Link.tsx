@@ -34,7 +34,6 @@ export default function (props: any) {
       }
       className={classnames("cursor-pointer", {
         "text-gray-500": element.touched,
-        "text-blue-500 hover:text-blue-800": !element.touched,
       })}
       {...props.attributes}
     >

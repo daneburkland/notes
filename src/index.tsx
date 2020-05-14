@@ -1,10 +1,12 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import "./index.css";
 import "./styles/index.css";
+import "./index.css";
 import App from "./App";
 import RouterWrapper from "./RouterWrapper";
 import * as serviceWorker from "./serviceWorker";
+import "./fonts/Montserrat-Black.ttf";
+import "./fonts/Montserrat-Regular.ttf";
 
 import { Auth0Provider } from "./auth/react-auth0-wrapper";
 import config from "./auth/auth-config.js";

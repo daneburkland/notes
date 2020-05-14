@@ -50,23 +50,23 @@ export function App() {
 
   return (
     <AppContext.Provider value={{ state, send, page }}>
-      <ul className="flex justify-between py-4">
+      <ul className="flex justify-between pb-5">
         <li className="mr-6">
           <Link
             to={{ pathname: "/all" }}
-            className="text-blue-500 hover:text-blue-800"
+            className="font-black text-2xl"
             href="#"
           >
-            All pages
+            notes
           </Link>
         </li>
         {!process.env.REACT_APP_IS_DEMO && !isAuthenticated && (
-          <li
-            className="cursor-pointer text-blue-500 hover:text-blue-800"
+          <button
+            className="cursor-pointer"
             onClick={() => loginWithRedirect()}
           >
             Log in
-          </li>
+          </button>
         )}
       </ul>
       <Switch>
@@ -86,7 +86,7 @@ export function App() {
 
 function AppWrapper() {
   return (
-    <div className="App max-w-lg mx-auto">
+    <div className="App max-w-xl px-4 py-10 mx-auto">
       <App />
     </div>
   );

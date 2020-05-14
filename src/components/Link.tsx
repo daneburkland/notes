@@ -19,9 +19,7 @@ function LinkNode({ data }: any) {
   return (
     <div className="mb-1">
       <Link to={{ pathname: `/page/${data.pageTitle}` }}>
-        <h3 className="text-lg text-blue-500 hover:text-blue-800">
-          {data.pageTitle}
-        </h3>
+        <h3 className="text-lg">{data.pageTitle}</h3>
       </Link>
       <Editor
         className="text-sm"
