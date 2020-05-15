@@ -2,6 +2,8 @@
 
 A bidirectional note taking app inspired by Roam Research. [Live demo](https://linked-notes.netlify.app/)
 
+Context behind this project: https://www.afforded.space/note-taking-in-public/
+
 ### `npm start`
 
 Runs the app in the development mode.<br />
