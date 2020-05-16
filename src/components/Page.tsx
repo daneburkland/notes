@@ -101,7 +101,12 @@ function Page({ page: pageMachine }: { page: any }) {
       {process.env.REACT_APP_AUTHOR && (
         <div>
           <span>
-            The working notes of <strong>{process.env.REACT_APP_AUTHOR}</strong>
+            The working notes of{" "}
+            <strong>
+              <a href={process.env.REACT_APP_AUTHOR_URL}>
+                {process.env.REACT_APP_AUTHOR}
+              </a>
+            </strong>
           </span>
         </div>
       )}
