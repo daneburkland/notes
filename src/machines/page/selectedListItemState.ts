@@ -10,6 +10,7 @@ const selectedListItemState = {
         assign({
           prevSelectedListItem: ({ selectedListItem }) => selectedListItem,
           selectedListItem: ({ editor }) =>
+            editor.parentListItemEntryAtSelection() &&
             editor.parentListItemEntryAtSelection()[0],
         }),
         send(UPDATE),

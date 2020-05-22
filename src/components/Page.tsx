@@ -43,6 +43,7 @@ function Page({ page: pageMachine }: { page: any }) {
       type: KEY_DOWN,
       key: event.key,
       shiftKey: event.shiftKey,
+      metaKey: event.metaKey,
     });
   };
 

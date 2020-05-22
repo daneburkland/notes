@@ -3,6 +3,8 @@ import { Node, createEditor, Editor, Range, NodeEntry } from "slate";
 import { withHistory } from "slate-history";
 import withLinks, { placeholderNode } from "../../plugins/withLinks";
 import withHyperlinks from "../../plugins/withHyperlinks";
+import withCodeBlockListItems from "../../plugins/withCodeBlockListItems";
+import withSoftBreaks from "../../plugins/withSoftBreaks";
 import withHelpers from "../../plugins/withHelpers";
 import withList from "../../plugins/withList";
 import { withReact, ReactEditor } from "slate-react";
@@ -23,6 +25,8 @@ import {
   INIT_LINK,
   LINK_CREATED,
   INSERT_BREAK,
+  INSERT_SOFT_BREAK,
+  TOGGLE_CODE_BLOCK,
 } from "./events";
 
 const { send } = actions;
@@ -93,12 +97,13 @@ export interface ISchema {
 }
 
 export type IEvent =
-  | { type: "KEY_DOWN"; key: string; shiftKey: boolean }
+  | { type: "KEY_DOWN"; key: string; shiftKey: boolean; metaKey: boolean }
   | { type: "CHANGE"; value: any }
   | { type: "INDENT_NODE" }
   | { type: "BACKSPACE" }
   | { type: "SYNC" }
   | { type: "INSERT_BREAK" }
+  | { type: "INSERT_SOFT_BREAK" }
   | { type: "SELECT_LINK" }
   | { type: "LINK_UPDATED" }
   | { type: "SYNC_LIST_ITEM" }
@@ -106,14 +111,22 @@ export type IEvent =
   | { type: "UNINDENT_NODE" }
   | { type: "INIT_LINK" }
   | { type: "LINK_CREATED" }
+  | { type: "TOGGLE_CODE_BLOCK" }
   | {
       type: "CLOSE_BRACKET";
     };
 
-const getTriggerEvent = ({ editor }: IContext, { key, shiftKey }: any) => {
+const getTriggerEvent = (
+  { editor }: IContext,
+  { key, shiftKey, metaKey }: any
+) => {
   switch (key) {
     case "Enter":
-      return { type: INSERT_BREAK };
+      if (shiftKey) {
+        return { type: INSERT_SOFT_BREAK };
+      } else {
+        return { type: INSERT_BREAK };
+      }
     case "Tab":
       if (shiftKey) {
         return { type: UNINDENT_NODE };
@@ -123,6 +136,10 @@ const getTriggerEvent = ({ editor }: IContext, { key, shiftKey }: any) => {
         return { type: INIT_LINK };
       } else {
         return { type: CLOSE_BRACKET };
+      }
+    case "/":
+      if (metaKey) {
+        return { type: TOGGLE_CODE_BLOCK };
       }
     case "Backspace":
       return { type: BACKSPACE };
@@ -150,9 +167,13 @@ const createPageMachine = ({
       id: `page-${title}`,
       initial: "loading",
       context: {
-        editor: withLinks(
-          withHyperlinks(
-            withHistory(withList(withHelpers(withReact(createEditor()))))
+        editor: withCodeBlockListItems(
+          withSoftBreaks(
+            withLinks(
+              withHyperlinks(
+                withHistory(withList(withHelpers(withReact(createEditor()))))
+              )
+            )
           )
         ),
         upsertLinks,
@@ -210,11 +231,17 @@ const createPageMachine = ({
                 [UNINDENT_NODE]: {
                   actions: ["unindentNode"],
                 },
+                [TOGGLE_CODE_BLOCK]: {
+                  actions: ["toggleCodeBlock"],
+                },
                 [INDENT_NODE]: {
                   actions: ["indentNode"],
                 },
                 [INSERT_BREAK]: {
                   actions: ["insertBreak"],
+                },
+                [INSERT_SOFT_BREAK]: {
+                  actions: ["insertSoftBreak"],
                 },
                 [KEY_DOWN]: {
                   actions: [send(getTriggerEvent)],
@@ -298,8 +325,14 @@ const createPageMachine = ({
         insertBreak: ({ editor }: IContext) => {
           editor.insertBreak();
         },
+        insertSoftBreak: ({ editor }: IContext) => {
+          editor.insertSoftBreak();
+        },
         closeBracket: ({ editor }: IContext) => {
           editor.closeBracket();
+        },
+        toggleCodeBlock: ({ editor }: IContext) => {
+          editor.toggleCodeBlock();
         },
         initLink: ({ editor }: IContext) => {
           editor.initLink();

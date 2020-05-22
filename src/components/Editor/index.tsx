@@ -2,6 +2,7 @@ import React from "react";
 
 import Leaf from "./Leaf";
 import ListItem from "./ListItem";
+import CodeBlock from "./CodeBlock";
 import List from "./List";
 import TextWrapper from "./TextWrapper";
 import Hyperlink from "./Hyperlink";
@@ -21,6 +22,8 @@ const renderElement = (props: any) => {
       return <List {...props} />;
     case "link":
       return <Link {...props} />;
+    case "codeBlock":
+      return <CodeBlock {...props} />;
     case "text-wrapper":
       return <TextWrapper {...props} />;
     case "list-item":
