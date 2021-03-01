@@ -2,18 +2,22 @@ import { actions, assign } from "xstate";
 import { IContext } from ".";
 import { ApolloCurrentQueryResult } from "apollo-boost";
 import { NodeEntry } from "slate";
+import DELETE_LINKS from "../../mutations/deleteLinks";
+import UPSERT_LINKS from "../../mutations/upsertLinks";
+import UPSERT_PAGE from "../../mutations/upsertPage";
 const { send, cancel } = actions;
 
 const SYNC = "SYNC";
 const CHANGE = "CHANGE";
 
-function upsertLinks({ upsertLinks, editor, title }: IContext) {
+function upsertLinks({ apolloClient, editor, title }: IContext) {
   const serializedLinkEntries = editor.serializeLinks({
     pageTitle: title,
   });
 
   if (!!serializedLinkEntries.length) {
-    return upsertLinks({
+    return apolloClient.mutate({
+      mutations: UPSERT_LINKS,
       variables: { links: serializedLinkEntries },
     });
   } else return Promise.resolve();
@@ -57,25 +61,44 @@ const pageSyncState = {
     },
     deletingLinks: {
       invoke: {
-        src: ({ editor, tags: persistedTags, deleteLinks }: IContext) => {
+        src: ({
+          editor,
+          tags: persistedTags,
+          apolloClient,
+          accessToken,
+        }: IContext) => {
           const tags = editor.getLinkNodeEntries();
           const tagIds = tags.map(([node]: NodeEntry) => node.id);
           const tagIdsToDestroy = persistedTags
             .map(({ id }) => id)
             .filter((id) => !tagIds.includes(id));
-          return deleteLinks({
+          console.log("access", accessToken);
+          return apolloClient.mutate({
+            mutation: DELETE_LINKS,
             variables: { linkIds: tagIdsToDestroy },
+            context: {
+              headers: { authorization: `Bearer ${accessToken}` },
+            },
           });
         },
         onDone: {
           target: "syncingLinks",
         },
+        onError: {
+          target: "failure",
+          actions: assign({
+            errorMessage: (_, event: ApolloCurrentQueryResult<any>) => {
+              return event.data.toString();
+            },
+          }),
+        },
       },
     },
     syncingPage: {
       invoke: {
-        src: ({ upsertPage, title, value }: IContext) => {
-          return upsertPage({
+        src: ({ apolloClient, title, value }: IContext) => {
+          return apolloClient.mutate({
+            mutation: UPSERT_PAGE,
             variables: { page: { node: value[0], title } },
           });
         },

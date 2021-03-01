@@ -33,19 +33,15 @@ const { send } = actions;
 
 export interface IContext {
   editor: Editor;
-  upsertLinks(links: any): any;
-  upsertPage(page: any): any;
   title: string;
   value: Node[] | any[];
-  deleteLinks(linkIds: any): any;
-  getOrCreatePage(variables: any): Promise<any>;
-  getLinksByValue(value: any): Promise<any>;
-  getPagesByTitle(value: any): Promise<any>;
+  apolloClient: any;
   placeholderNode: Node;
   canBackspace: boolean;
   filteredPages: any[];
   PagesTooltipRef: any;
   linkValueAtSelection: string;
+  accessToken: any;
   activeLinkId: string | null;
   errorMessage: string;
   touchedLinkNodes: Node[];
@@ -153,15 +149,7 @@ function canBackspace({ editor }: IContext) {
   return editor.canBackspace();
 }
 
-const createPageMachine = ({
-  upsertLinks,
-  upsertPage,
-  deleteLinks,
-  title,
-  getOrCreatePage,
-  getLinksByValue,
-  getPagesByTitle,
-}: any) =>
+const createPageMachine = ({ apolloClient, title, accessToken }: any) =>
   Machine<IContext, ISchema, IEvent>(
     {
       id: `page-${title}`,
@@ -176,14 +164,11 @@ const createPageMachine = ({
             )
           )
         ),
-        upsertLinks,
-        upsertPage,
-        deleteLinks,
+
         title,
-        getOrCreatePage,
         placeholderNode,
-        getLinksByValue,
-        getPagesByTitle,
+        apolloClient,
+        accessToken,
         canBackspace: true,
         value: [],
         filteredPages: [],
@@ -364,6 +349,9 @@ const createPageMachine = ({
           setTimeout(() => {
             editor.unwrapHyperlinks(selectedListItem);
           }, 0);
+        },
+        logError: (_: IContext, event: any) => {
+          console.log("error", event);
         },
       },
     }

@@ -9,16 +9,19 @@ import PagesTooltip from "./PagesTooltip";
 import { useQuery } from "@apollo/react-hooks";
 import GET_LINKS_BY_VALUE from "../queries/getLinksByValue";
 import { IContext, IEvent } from "../machines/page";
-import { useAuth0 } from "../auth/react-auth0-wrapper";
 
 export const PageContext = React.createContext({
   activeLinkId: "",
   touchedLinkNodes: [] as any,
 });
 
-function Page({ page: pageMachine }: { page: any }) {
+function Page(props: any) {
+  const { current: currentRoot } = props;
+  const { page: pageMachine } = currentRoot.context as any;
+  const isAuthenticated = currentRoot.matches({ auth: "idleAuthenticated" });
+
   const [current, send] = useService<IContext, IEvent>(pageMachine as any);
-  const { isAuthenticated } = useAuth0();
+  // const { isAuthenticated } = useAuth0();
 
   const {
     context: { title },

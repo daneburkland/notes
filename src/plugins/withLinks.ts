@@ -195,6 +195,7 @@ const withLink = (editor: any) => {
   };
 
   editor.getActiveLinkId = () => {
+    console.log('getting active')
     const parentNodeAtSelection = editor.getParentNodeAtSelection();
     if (!parentNodeAtSelection || parentNodeAtSelection.type !== "link") {
       return null;

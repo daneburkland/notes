@@ -3,9 +3,12 @@ import { IContext } from ".";
 import { CHANGE, SELECT_LINK, LINK_UPDATED } from "./events";
 import { Node } from "slate";
 import { placeholderNode } from "../../plugins/withLinks";
+import GET_PAGES_BY_TITLE from "../../queries/getPagesByTitle";
+import GET_OR_CREATE_PAGE from "../../mutations/getOrCreatePage";
 
-function invokeFetchPages({ getPagesByTitle, linkValueAtSelection }: IContext) {
-  return getPagesByTitle({
+function invokeFetchPages({ apolloClient, linkValueAtSelection }: IContext) {
+  return apolloClient.query({
+    query: GET_PAGES_BY_TITLE,
     title: `%${linkValueAtSelection}%`,
   });
 }
@@ -17,7 +20,7 @@ function setFilteredPages(_: IContext, event: any) {
 function getOrCreatePages({
   editor,
   title,
-  getOrCreatePage,
+  apolloClient,
   touchedLinkNodes,
 }: IContext) {
   const touchedLinkIds = touchedLinkNodes.map((node) => node.id);
@@ -31,7 +34,8 @@ function getOrCreatePages({
   if (!!serializedLinkEntries.length) {
     return Promise.all(
       serializedLinkEntries.map((linkEntry: any) => {
-        return getOrCreatePage({
+        return apolloClient.mutate({
+          mutation: GET_OR_CREATE_PAGE,
           variables: {
             page: { title: linkEntry.value, node: placeholderNode },
           },

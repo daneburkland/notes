@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@apollo/client": "^3.3.11",
     "@apollo/react-hooks": "^3.1.5",
     "@apollo/react-testing": "^3.1.4",
     "@auth0/auth0-spa-js": "^1.8.1",
