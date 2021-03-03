@@ -1,12 +1,14 @@
 import { Machine, assign } from "xstate";
 import createAuth0Client from "@auth0/auth0-spa-js";
 
+export const LOG_IN = "LOG_IN";
+
 export interface IContext {
   domain: any;
   clientId: any;
   audience: any;
   redirectUri: any;
-  client: any;
+  authClient: any;
   user: any;
   accessToken: any;
 }
@@ -31,16 +33,20 @@ function initAuth0({ domain, clientId, audience, redirectUri }: IContext) {
   });
 }
 
-function getIsAuthenticated({ client }: IContext) {
-  return client.isAuthenticated();
+function getIsAuthenticated({ authClient }: IContext) {
+  return authClient.isAuthenticated();
 }
 
-function getUser({ client }: IContext) {
-  return client.getUser();
+function getUser({ authClient }: IContext) {
+  return authClient.getUser();
 }
 
-function getToken({ client }: IContext) {
-  return client.getTokenSilently();
+function getToken({ authClient }: IContext) {
+  return authClient.getTokenSilently();
+}
+
+function loginWithRedirect({ authClient }: IContext) {
+  return authClient.loginWithRedirect();
 }
 
 const authMachine = {
@@ -51,7 +57,7 @@ const authMachine = {
     clientId: "",
     audience: "",
     redirectUri: "",
-    client: {},
+    authClient: {},
     user: {},
     accessToken: "",
   },
@@ -60,10 +66,31 @@ const authMachine = {
       invoke: {
         src: initAuth0,
         onDone: {
+          target: "gettingToken",
+          actions: [
+            assign<IContext>({
+              authClient: (_: IContext, event: any) => event.data,
+            }),
+          ],
+        },
+      },
+    },
+    loggingIn: {
+      invoke: {
+        src: loginWithRedirect,
+        onDone: {
+          target: "initialized",
+        },
+      },
+    },
+    gettingToken: {
+      invoke: {
+        src: getToken,
+        onDone: {
           target: "initialized",
           actions: [
             assign<IContext>({
-              client: (_: IContext, event: any) => event.data,
+              accessToken: (_: IContext, event: any) => event.data,
             }),
           ],
         },
@@ -75,7 +102,9 @@ const authMachine = {
         onDone: [
           {
             target: "authenticated",
-            cond: (_: IContext, event: any) => event.data,
+            cond: (_: IContext, event: any) => {
+              return event.data;
+            },
           },
           {
             target: "idleNotAuthenticated",
@@ -87,7 +116,7 @@ const authMachine = {
       invoke: {
         src: getUser,
         onDone: {
-          target: "gettingToken",
+          target: "idleAuthenticated",
           actions: [
             assign<IContext>({
               user: (_: IContext, event: any) => event.data,
@@ -96,22 +125,14 @@ const authMachine = {
         },
       },
     },
-    gettingToken: {
-      invoke: {
-        src: getToken,
-        onDone: {
-          target: "idleAuthenticated",
-          actions: [
-            assign<IContext>({
-              accessToken: (_: IContext, event: any) => event.data,
-            }),
-          ],
-        },
-      },
-    },
     idleAuthenticated: {},
     idleNotAuthenticated: {},
     error: {},
+  },
+  on: {
+    [LOG_IN]: {
+      target: ".loggingIn",
+    },
   },
 };
 

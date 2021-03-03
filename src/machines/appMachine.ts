@@ -17,6 +17,7 @@ export interface IContext {
   pages: IPages;
   apolloClient: any;
   history$: any;
+  authClient: any;
 }
 
 interface ISchema {
@@ -40,7 +41,7 @@ const resolveSelectedPageContext = ({
 }) => {
   const pageTitle = pageTitleFromUrl || todayDateString();
   let page = context.pages[pageTitle];
-  const { apolloClient, accessToken } = context;
+  const { apolloClient, authClient } = context;
 
   if (page) {
     return {
@@ -52,7 +53,7 @@ const resolveSelectedPageContext = ({
   page = spawn(
     createPageMachine({
       apolloClient,
-      accessToken,
+      authClient,
       title: pageTitle,
     })
   );
@@ -107,27 +108,29 @@ const appMachine = {
     },
     error: {},
   },
-  // on: {
-  //   [ROUTE_CHANGED]: [
-  //     {
-  //       target: "selectedPage",
-  //       cond: { type: "verifyRoute", location: "/page/:pageTitle" },
-  //     },
-  //     {
-  //       target: "selectedPage",
-  //       cond: { type: "verifyRoute", location: "/" },
-  //     },
-  //     { target: "error" },
-  //   ],
-  //   [SELECT]: {
-  //     target: ".selectedPage",
-  //     actions: assign<IContext>((context, event: any) => {
-  //       const pageTitle = event.pageTitle;
+  on: {
+    [ROUTE_CHANGED]: [
+      {
+        target: ".selectedPage",
+        cond: { type: "verifyRoute", location: "/page/:pageTitle" },
+        internal: false,
+      },
+      {
+        target: ".selectedPage",
+        cond: { type: "verifyRoute", location: "/" },
+        internal: false,
+      },
+      { target: ".error" },
+    ],
+    [SELECT]: {
+      target: ".selectedPage",
+      actions: assign<IContext>((context, event: any) => {
+        const pageTitle = event.pageTitle;
 
-  //       return resolveSelectedPageContext({ context, pageTitle });
-  //     }),
-  //   },
-  // },
+        return resolveSelectedPageContext({ context, pageTitle });
+      }),
+    },
+  },
 };
 
 export default appMachine;

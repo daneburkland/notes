@@ -1,17 +1,25 @@
 import { StateNodeConfig } from "xstate";
 import Route from "route-parser";
-import { Machine, assign, spawn, Interpreter } from "xstate";
+import { Machine, assign } from "xstate";
 import appMachine, { IContext as IAppContext } from "./appMachine";
 import authMachine, { IContext as IAuthContext } from "./authMachine";
+import createAuth0Client from "@auth0/auth0-spa-js";
 
-
+function initAuth0({ domain, clientId, audience, redirectUri }: any) {
+  return createAuth0Client({
+    domain,
+    client_id: clientId,
+    audience,
+    redirect_uri: redirectUri,
+  });
+}
 
 interface IContext {
   domain: any;
   clientId: any;
   audience: any;
   redirectUri: any;
-  client: any;
+  authClient: any;
   user: any;
   accessToken: any;
   page: any;
@@ -23,7 +31,7 @@ interface IContext {
 interface ISchema {
   states: {
     app: {
-      init: {}
+      init: {};
     };
     auth: {};
   };
@@ -32,15 +40,33 @@ interface ISchema {
 const rootMachine = Machine<any, any, any>(
   {
     id: "root",
-    type: "parallel",
+    initial: "init",
     states: {
-      app: {
-        ...(appMachine as StateNodeConfig<any, any, any>),
-        initial: 'init'
+      init: {
+        invoke: {
+          src: initAuth0,
+          onDone: {
+            target: "initialized",
+            actions: [
+              assign<any>({
+                authClient: (_: any, event: any) => event.data,
+              }),
+            ],
+          },
+        },
       },
-      auth: {
-        ...(authMachine as StateNodeConfig<any, any, any>),
-        initial: 'init'
+      initialized: {
+        type: "parallel",
+        states: {
+          app: {
+            ...(appMachine as StateNodeConfig<any, any, any>),
+            initial: "init",
+          },
+          auth: {
+            ...(authMachine as StateNodeConfig<any, any, any>),
+            initial: "init",
+          },
+        },
       },
     },
   },

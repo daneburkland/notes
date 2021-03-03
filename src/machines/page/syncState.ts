@@ -10,15 +10,18 @@ const { send, cancel } = actions;
 const SYNC = "SYNC";
 const CHANGE = "CHANGE";
 
-function upsertLinks({ apolloClient, editor, title }: IContext) {
+function upsertLinks({ apolloClient, editor, title, accessToken }: IContext) {
   const serializedLinkEntries = editor.serializeLinks({
     pageTitle: title,
   });
 
   if (!!serializedLinkEntries.length) {
     return apolloClient.mutate({
-      mutations: UPSERT_LINKS,
+      mutation: UPSERT_LINKS,
       variables: { links: serializedLinkEntries },
+      context: {
+        headers: { authorization: `Bearer ${accessToken}` },
+      },
     });
   } else return Promise.resolve();
 }
@@ -72,7 +75,6 @@ const pageSyncState = {
           const tagIdsToDestroy = persistedTags
             .map(({ id }) => id)
             .filter((id) => !tagIds.includes(id));
-          console.log("access", accessToken);
           return apolloClient.mutate({
             mutation: DELETE_LINKS,
             variables: { linkIds: tagIdsToDestroy },

@@ -18,10 +18,11 @@ export const PageContext = React.createContext({
 function Page(props: any) {
   const { current: currentRoot } = props;
   const { page: pageMachine } = currentRoot.context as any;
-  const isAuthenticated = currentRoot.matches({ auth: "idleAuthenticated" });
+  const isAuthenticated = currentRoot.matches({
+    initialized: { auth: "idleAuthenticated" },
+  });
 
   const [current, send] = useService<IContext, IEvent>(pageMachine as any);
-  // const { isAuthenticated } = useAuth0();
 
   const {
     context: { title },

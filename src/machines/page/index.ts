@@ -48,12 +48,18 @@ export interface IContext {
   tags: any[];
   prevSelectedListItem: NodeEntry | null;
   selectedListItem: NodeEntry | null;
+  authClient: any;
+  user: any;
 }
 
 export interface ISchema {
   states: {
     failed: {};
     loading: {};
+    loadingAuth: {};
+    gettingUser: {};
+    gettingToken: {};
+    idleNotAuthenticated: {};
     loaded: {
       states: {
         selectedListItem: {};
@@ -112,6 +118,18 @@ export type IEvent =
       type: "CLOSE_BRACKET";
     };
 
+function getIsAuthenticated({ authClient }: IContext) {
+  return authClient.isAuthenticated();
+}
+
+function getUser({ authClient }: IContext) {
+  return authClient.getUser();
+}
+
+function getToken({ authClient }: IContext) {
+  return authClient.getTokenSilently();
+}
+
 const getTriggerEvent = (
   { editor }: IContext,
   { key, shiftKey, metaKey }: any
@@ -149,7 +167,12 @@ function canBackspace({ editor }: IContext) {
   return editor.canBackspace();
 }
 
-const createPageMachine = ({ apolloClient, title, accessToken }: any) =>
+const createPageMachine = ({
+  apolloClient,
+  title,
+  accessToken,
+  authClient,
+}: any) =>
   Machine<IContext, ISchema, IEvent>(
     {
       id: `page-${title}`,
@@ -169,6 +192,7 @@ const createPageMachine = ({ apolloClient, title, accessToken }: any) =>
         placeholderNode,
         apolloClient,
         accessToken,
+        authClient,
         canBackspace: true,
         value: [],
         filteredPages: [],
@@ -180,11 +204,52 @@ const createPageMachine = ({ apolloClient, title, accessToken }: any) =>
         tags: [],
         prevSelectedListItem: null,
         selectedListItem: null,
+        user: null,
       },
       states: {
         failed: {},
         loading: {
           ...loadingState,
+        },
+        loadingAuth: {
+          invoke: {
+            src: getIsAuthenticated,
+            onDone: [
+              {
+                target: "gettingUser",
+                cond: (_: IContext, event: any) => event.data,
+              },
+              {
+                target: "idleNotAuthenticated",
+              },
+            ],
+          },
+        },
+        gettingUser: {
+          invoke: {
+            src: getUser,
+            onDone: {
+              target: "gettingToken",
+              actions: [
+                assign<IContext>({
+                  user: (_: IContext, event: any) => event.data,
+                }),
+              ],
+            },
+          },
+        },
+        gettingToken: {
+          invoke: {
+            src: getToken,
+            onDone: {
+              target: "loaded",
+              actions: [
+                assign<IContext>({
+                  accessToken: (_: IContext, event: any) => event.data,
+                }),
+              ],
+            },
+          },
         },
         loaded: {
           type: "parallel",
@@ -241,6 +306,7 @@ const createPageMachine = ({ apolloClient, title, accessToken }: any) =>
             },
           },
         },
+        idleNotAuthenticated: {},
       },
     },
     {

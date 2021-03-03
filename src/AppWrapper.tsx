@@ -18,7 +18,7 @@ export function AppWrapper() {
   const history$ = fromEventPattern(history.listen);
   const apolloClient = useApolloClient();
 
-  const [state] = useMachine(rootMachine, {
+  const [state, send] = useMachine(rootMachine, {
     context: {
       history$,
       apolloClient,
@@ -31,20 +31,12 @@ export function AppWrapper() {
     },
   });
 
-  return <App current={state} />;
+  return <App current={state} send={send} />;
 }
 
 function ApolloWrapper() {
   const client = new ApolloClient({
     uri,
-    request: (operation) => {
-      const headers = !!false
-        ? { authorization: `Bearer ${"accessToken"}` }
-        : {};
-      operation.setContext({
-        headers,
-      });
-    },
   });
 
   return (

@@ -4,7 +4,6 @@ import { placeholderNode } from "../../plugins/withLinks";
 import GET_OR_CREATE_PAGE from "../../mutations/getOrCreatePage";
 
 function invokeFetchPage({ title, apolloClient }: IContext) {
-  console.log("fetching page", apolloClient.query);
   return apolloClient.mutate({
     mutation: GET_OR_CREATE_PAGE,
     variables: {
@@ -26,7 +25,7 @@ const loadingState = {
     id: "fetch-page",
     src: invokeFetchPage,
     onDone: {
-      target: "loaded",
+      target: "loadingAuth",
       actions: [
         assign<IContext>({
           value: setValue,
