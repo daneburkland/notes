@@ -8,7 +8,6 @@ export function App({ current, send }: { current: any; send: any }) {
   const isNotAuthenticated = current.matches({
     initialized: { auth: "idleNotAuthenticated" },
   });
-  const isInitialized = current.matches({ initialized: "app" });
 
   return (
     <div className="App max-w-xl px-4 py-10 mx-auto">
@@ -28,21 +27,17 @@ export function App({ current, send }: { current: any; send: any }) {
           </button>
         )}
       </ul>
-      {isInitialized ? (
-        <Switch>
-          <Route path="/all">
-            <PageList />
-          </Route>
-          <Route exact path="/">
-            <Page current={current} />
-          </Route>
-          <Route exact path="/page/:pageTitle">
-            <Page current={current} />
-          </Route>
-        </Switch>
-      ) : (
-        <span>loading....</span>
-      )}
+      <Switch>
+        <Route path="/all">
+          <PageList />
+        </Route>
+        <Route exact path="/">
+          <Page machine={current.context.page} />
+        </Route>
+        <Route exact path="/page/:pageTitle">
+          <Page machine={current.context.page} />
+        </Route>
+      </Switch>
     </div>
   );
 }

@@ -4,7 +4,7 @@ import ApolloClient from "apollo-boost";
 import { useMachine } from "@xstate/react";
 import App from "./App";
 import { fromEventPattern } from "rxjs";
-import rootMachine from "./machines/rootMachine";
+import appMachine from "./machines/appMachine";
 import { ApolloProvider, useApolloClient } from "@apollo/react-hooks";
 import config from "./auth/auth-config";
 
@@ -18,7 +18,7 @@ export function AppWrapper() {
   const history$ = fromEventPattern(history.listen);
   const apolloClient = useApolloClient();
 
-  const [state, send] = useMachine(rootMachine, {
+  const [state, send] = useMachine(appMachine, {
     context: {
       history$,
       apolloClient,

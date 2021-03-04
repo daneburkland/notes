@@ -14,6 +14,7 @@ import loadingState from "./loadingState";
 import editingLinkState from "./editingLinkState";
 import selectedListItemState from "./selectedListItemState";
 import { arraysEqual } from "../../utils/array";
+import createAuth0Client from "@auth0/auth0-spa-js";
 
 import {
   CLOSE_BRACKET,
@@ -27,6 +28,7 @@ import {
   INSERT_BREAK,
   INSERT_SOFT_BREAK,
   TOGGLE_CODE_BLOCK,
+  LOG_IN,
 } from "./events";
 
 const { send } = actions;
@@ -50,17 +52,23 @@ export interface IContext {
   selectedListItem: NodeEntry | null;
   authClient: any;
   user: any;
+  domain: any;
+  clientId: any;
+  redirectUri: any;
+  audience: any;
 }
 
 export interface ISchema {
   states: {
     failed: {};
     loading: {};
+    initializingAuth: {};
     loadingAuth: {};
     gettingUser: {};
     gettingToken: {};
+    loggingIn: {};
     idleNotAuthenticated: {};
-    loaded: {
+    authenticated: {
       states: {
         selectedListItem: {};
         sync: {
@@ -114,9 +122,19 @@ export type IEvent =
   | { type: "INIT_LINK" }
   | { type: "LINK_CREATED" }
   | { type: "TOGGLE_CODE_BLOCK" }
+  | { type: "LOG_IN" }
   | {
       type: "CLOSE_BRACKET";
     };
+
+function initAuth0({ domain, clientId, audience, redirectUri }: IContext) {
+  return createAuth0Client({
+    domain,
+    client_id: clientId,
+    audience,
+    redirect_uri: redirectUri,
+  });
+}
 
 function getIsAuthenticated({ authClient }: IContext) {
   return authClient.isAuthenticated();
@@ -128,6 +146,10 @@ function getUser({ authClient }: IContext) {
 
 function getToken({ authClient }: IContext) {
   return authClient.getTokenSilently();
+}
+
+function loginWithRedirect({ authClient }: IContext) {
+  return authClient.loginWithRedirect();
 }
 
 const getTriggerEvent = (
@@ -171,7 +193,10 @@ const createPageMachine = ({
   apolloClient,
   title,
   accessToken,
-  authClient,
+  domain,
+  clientId,
+  audience,
+  redirectUri,
 }: any) =>
   Machine<IContext, ISchema, IEvent>(
     {
@@ -192,7 +217,11 @@ const createPageMachine = ({
         placeholderNode,
         apolloClient,
         accessToken,
-        authClient,
+        domain,
+        clientId,
+        audience,
+        redirectUri,
+        authClient: null,
         canBackspace: true,
         value: [],
         filteredPages: [],
@@ -210,6 +239,45 @@ const createPageMachine = ({
         failed: {},
         loading: {
           ...loadingState,
+        },
+        loggingIn: {
+          invoke: {
+            src: loginWithRedirect,
+            onDone: {
+              target: "gettingToken",
+            },
+          },
+        },
+        initializingAuth: {
+          invoke: {
+            src: initAuth0,
+            onDone: {
+              target: "loadingAuth",
+              actions: [
+                assign<IContext>({
+                  authClient: (_: IContext, event: any) => event.data,
+                }),
+              ],
+            },
+          },
+        },
+        gettingToken: {
+          invoke: {
+            src: getToken,
+            onDone: {
+              target: "loadingAuth",
+              actions: [
+                assign<IContext>({
+                  accessToken: (_: IContext, event: any) => event.data,
+                }),
+              ],
+            },
+            onError: {
+              actions: [
+                (_: IContext, event: any) => console.log("error", event),
+              ],
+            },
+          },
         },
         loadingAuth: {
           invoke: {
@@ -238,20 +306,7 @@ const createPageMachine = ({
             },
           },
         },
-        gettingToken: {
-          invoke: {
-            src: getToken,
-            onDone: {
-              target: "loaded",
-              actions: [
-                assign<IContext>({
-                  accessToken: (_: IContext, event: any) => event.data,
-                }),
-              ],
-            },
-          },
-        },
-        loaded: {
+        authenticated: {
           type: "parallel",
           states: {
             sync: {
@@ -307,6 +362,11 @@ const createPageMachine = ({
           },
         },
         idleNotAuthenticated: {},
+      },
+      on: {
+        [LOG_IN]: {
+          target: "loggingIn",
+        },
       },
     },
     {

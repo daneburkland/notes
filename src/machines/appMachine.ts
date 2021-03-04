@@ -17,7 +17,6 @@ export interface IContext {
   pages: IPages;
   apolloClient: any;
   history$: any;
-  authClient: any;
 }
 
 interface ISchema {
@@ -41,7 +40,7 @@ const resolveSelectedPageContext = ({
 }) => {
   const pageTitle = pageTitleFromUrl || todayDateString();
   let page = context.pages[pageTitle];
-  const { apolloClient, authClient } = context;
+  const { apolloClient, domain, clientId, audience, redirectUri } = context;
 
   if (page) {
     return {
@@ -53,8 +52,11 @@ const resolveSelectedPageContext = ({
   page = spawn(
     createPageMachine({
       apolloClient,
-      authClient,
       title: pageTitle,
+      domain,
+      clientId,
+      audience,
+      redirectUri,
     })
   );
 
@@ -67,70 +69,87 @@ const resolveSelectedPageContext = ({
   };
 };
 
-const appMachine = {
-  initial: "init",
-  invoke: {
-    src: ({ history$ }: any) => {
-      return history$.pipe(
-        map(() => {
-          return {
-            type: ROUTE_CHANGED,
-          };
-        })
-      );
+const appMachine = Machine<any, any, any>(
+  {
+    id: "app",
+    initial: "init",
+    invoke: {
+      src: ({ history$ }: any) => {
+        return history$.pipe(
+          map(() => {
+            return {
+              type: ROUTE_CHANGED,
+            };
+          })
+        );
+      },
     },
-  },
-  states: {
-    init: {
-      on: {
-        "": [
-          {
-            target: "selectedPage",
-            cond: { type: "verifyRoute", location: "/page/:pageTitle" },
-          },
-          {
-            target: "selectedPage",
-            cond: { type: "verifyRoute", location: "/" },
-          },
-          { target: "error" },
+    states: {
+      init: {
+        on: {
+          "": [
+            {
+              target: "selectedPage",
+              cond: { type: "verifyRoute", location: "/page/:pageTitle" },
+            },
+            {
+              target: "selectedPage",
+              cond: { type: "verifyRoute", location: "/" },
+            },
+            { target: "error" },
+          ],
+        },
+      },
+      selectedPage: {
+        entry: [
+          assign<IContext>((context: any) => {
+            const { pathname } = window.location;
+            const route = new Route("/page/:pageTitle");
+            const { pageTitle } = route.match(pathname) as {
+              pageTitle: string;
+            };
+            return resolveSelectedPageContext({ context, pageTitle });
+          }),
         ],
       },
+      error: {},
     },
-    selectedPage: {
-      entry: [
-        assign<IContext>((context: any) => {
-          const { pathname } = window.location;
-          const route = new Route("/page/:pageTitle");
-          const { pageTitle } = route.match(pathname) as { pageTitle: string };
+    on: {
+      [ROUTE_CHANGED]: [
+        {
+          target: ".selectedPage",
+          cond: { type: "verifyRoute", location: "/page/:pageTitle" },
+          internal: false,
+        },
+        {
+          target: ".selectedPage",
+          cond: { type: "verifyRoute", location: "/" },
+          internal: false,
+        },
+        { target: ".error" },
+      ],
+      [SELECT]: {
+        target: ".selectedPage",
+        actions: assign<IContext>((context, event: any) => {
+          const pageTitle = event.pageTitle;
+
           return resolveSelectedPageContext({ context, pageTitle });
         }),
-      ],
-    },
-    error: {},
-  },
-  on: {
-    [ROUTE_CHANGED]: [
-      {
-        target: ".selectedPage",
-        cond: { type: "verifyRoute", location: "/page/:pageTitle" },
-        internal: false,
       },
-      {
-        target: ".selectedPage",
-        cond: { type: "verifyRoute", location: "/" },
-        internal: false,
-      },
-      { target: ".error" },
-    ],
-    [SELECT]: {
-      target: ".selectedPage",
-      actions: assign<IContext>((context, event: any) => {
-        const pageTitle = event.pageTitle;
-
-        return resolveSelectedPageContext({ context, pageTitle });
-      }),
     },
   },
-};
+  {
+    guards: {
+      verifyRoute: (context: IContext, event: any, { cond }: any) => {
+        const { pathname } = window.location;
+        const route = new Route(cond.location);
+        if (route.match(pathname)) {
+          return true;
+        }
+        return false;
+      },
+    },
+  }
+);
 
 export default appMachine;

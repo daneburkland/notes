@@ -13,3 +13,4 @@ export const INSERT_BREAK = "INSERT_BREAK";
 export const INSERT_SOFT_BREAK = "INSERT_SOFT_BREAK";
 export const SYNC_LIST_ITEM = "SYNC_LIST_ITEM";
 export const TOGGLE_CODE_BLOCK = "TOGGLE_CODE_BLOCK";
+export const LOG_IN = "LOG_IN";

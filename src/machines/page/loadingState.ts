@@ -25,7 +25,7 @@ const loadingState = {
     id: "fetch-page",
     src: invokeFetchPage,
     onDone: {
-      target: "loadingAuth",
+      target: "initializingAuth",
       actions: [
         assign<IContext>({
           value: setValue,

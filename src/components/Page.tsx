@@ -15,14 +15,10 @@ export const PageContext = React.createContext({
   touchedLinkNodes: [] as any,
 });
 
-function Page(props: any) {
-  const { current: currentRoot } = props;
-  const { page: pageMachine } = currentRoot.context as any;
-  const isAuthenticated = currentRoot.matches({
-    initialized: { auth: "idleAuthenticated" },
-  });
-
-  const [current, send] = useService<IContext, IEvent>(pageMachine as any);
+function Page({ machine }: any) {
+  const [current, send] = useService<IContext, IEvent>(machine as any);
+  const isAuthenticated = current.matches("authenticated");
+  console.log(current.toStrings());
 
   const {
     context: { title },
@@ -59,7 +55,7 @@ function Page(props: any) {
     return <div>Waking up free Heroku dynos...</div>;
   }
 
-  const isSynced = current.matches({ loaded: { sync: "synced" } });
+  const isSynced = current.matches({ authenticated: { sync: "synced" } });
 
   return (
     <div>
